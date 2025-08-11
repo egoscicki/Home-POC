@@ -1,0 +1,43 @@
+{
+  "name": "home-property-valuation-tracker",
+  "version": "1.0.0",
+  "description": "A sleek, Apple-inspired home property valuation tracker widget with glass UI elements and real-time property insights",
+  "main": "index.html",
+  "scripts": {
+    "start": "python3 -m http.server 8000",
+    "dev": "python3 -m http.server 8000",
+    "serve": "python3 -m http.server 8000"
+  },
+  "keywords": [
+    "property",
+    "valuation",
+    "real-estate",
+    "home-tracker",
+    "glass-ui",
+    "apple-design",
+    "rentcast-api",
+    "property-data",
+    "real-estate-tools",
+    "property-insights"
+  ],
+  "author": "Eric Goscicki",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/home-poc.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/home-poc/issues"
+  },
+  "homepage": "https://github.com/yourusername/home-poc#readme",
+  "devDependencies": {},
+  "dependencies": {},
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead"
+  ]
+}

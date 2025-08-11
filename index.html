@@ -3,44 +3,178 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NPC Grid Game</title>
+    <title>Home Value Tracker</title>
     <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <div class="game-container">
-        <div class="game-header">
-            <h1>Chatting with the Squares</h1>
-            <div class="controls-info">
-                <p>Move: WASD or Click/Touch | Interact: Spacebar near NPCs</p>
-            </div>
-        </div>
+    <div class="app-container">
+        <!-- Background gradient -->
+        <div class="background-gradient"></div>
         
-        <div class="game-area">
-            <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <!-- Main widget container -->
+        <div class="widget-container">
+            <div class="widget-header">
+                <div class="header-content">
+                    <i class="fas fa-home header-icon"></i>
+                    <h1>Home Value Tracker</h1>
+                    <p>Get real-time property insights</p>
+                </div>
+            </div>
             
-            <div class="chat-panel" id="chatPanel" style="display: none;">
-                <div class="chat-header">
-                    <h3>Chat with NPC</h3>
-                    <button class="close-btn" id="closeChat">×</button>
-                </div>
-                <div class="chat-messages" id="chatMessages"></div>
-                <div class="chat-input">
-                    <input type="text" id="chatInput" placeholder="Type your message...">
-                    <button id="sendMessage">Send</button>
+            <!-- Address input section -->
+            <div class="address-section" id="addressSection">
+                <div class="glass-card">
+                    <h2>Enter Property Address</h2>
+                    <div class="address-input-container">
+                        <div class="input-group">
+                            <i class="fas fa-search input-icon"></i>
+                            <input 
+                                type="text" 
+                                id="addressInput" 
+                                placeholder="Start typing an address..."
+                                autocomplete="off"
+                            >
+                            <div class="suggestions" id="suggestions"></div>
+                        </div>
+                        <button class="search-btn" id="searchBtn">
+                            <i class="fas fa-search"></i>
+                            Search
+                        </button>
+                    </div>
                 </div>
             </div>
-        </div>
-        
-        <div class="game-footer">
-            <div class="api-config">
-                <label for="apiKey">OpenAI API Key:</label>
-                <input type="password" id="apiKey" placeholder="Enter your OpenAI API key">
-                <button id="saveApiKey">Save</button>
-                <button id="testApiKey">Test API Key</button>
+            
+            <!-- Property details section (hidden initially) -->
+            <div class="property-section" id="propertySection" style="display: none;">
+                <div class="glass-card main-property-card">
+                    <div class="property-header">
+                        <div class="property-title">
+                            <h2 id="propertyAddress">Property Address</h2>
+                            <p class="property-type" id="propertyType">Single Family Home</p>
+                        </div>
+                        <div class="property-actions">
+                            <button class="refresh-btn" id="refreshBtn">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Main value display -->
+                    <div class="value-display">
+                        <div class="current-value">
+                            <span class="value-label">Current Value</span>
+                            <span class="value-amount" id="currentValue">$0</span>
+                        </div>
+                        <div class="value-change" id="valueChange">
+                            <span class="change-amount">+$0</span>
+                            <span class="change-percentage">+0%</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Property features -->
+                    <div class="property-features">
+                        <div class="feature-item" id="poolFeature">
+                            <i class="fas fa-swimming-pool feature-icon"></i>
+                            <span>Pool</span>
+                        </div>
+                        <div class="feature-item" id="fireplaceFeature">
+                            <i class="fas fa-fire feature-icon"></i>
+                            <span>Fireplace</span>
+                        </div>
+                        <div class="feature-item" id="garageFeature">
+                            <i class="fas fa-warehouse feature-icon"></i>
+                            <span>Garage</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Property details grid -->
+                <div class="details-grid">
+                    <div class="glass-card detail-card">
+                        <i class="fas fa-calendar-alt detail-icon"></i>
+                        <div class="detail-content">
+                            <span class="detail-label">Last Sold</span>
+                            <span class="detail-value" id="lastSoldDate">-</span>
+                        </div>
+                    </div>
+                    
+                    <div class="glass-card detail-card">
+                        <i class="fas fa-ruler-combined detail-icon"></i>
+                        <div class="detail-content">
+                            <span class="detail-label">Square Feet</span>
+                            <span class="detail-value" id="squareFootage">-</span>
+                        </div>
+                    </div>
+                    
+                    <div class="glass-card detail-card">
+                        <i class="fas fa-bed detail-icon"></i>
+                        <div class="detail-content">
+                            <span class="detail-label">Bedrooms</span>
+                            <span class="detail-value" id="bedrooms">-</span>
+                        </div>
+                    </div>
+                    
+                    <div class="glass-card detail-card">
+                        <i class="fas fa-bath detail-icon"></i>
+                        <div class="detail-content">
+                            <span class="detail-label">Bathrooms</span>
+                            <span class="detail-value" id="bathrooms">-</span>
+                        </div>
+                    </div>
+                    
+                    <div class="glass-card detail-card">
+                        <i class="fas fa-map-marker-alt detail-icon"></i>
+                        <div class="detail-content">
+                            <span class="detail-label">Lot Size</span>
+                            <span class="detail-value" id="lotSize">-</span>
+                        </div>
+                    </div>
+                    
+                    <div class="glass-card detail-card">
+                        <i class="fas fa-calendar-check detail-icon"></i>
+                        <div class="detail-content">
+                            <span class="detail-label">Year Built</span>
+                            <span class="detail-value" id="yearBuilt">-</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Value history chart -->
+                <div class="glass-card chart-card">
+                    <h3>Value History</h3>
+                    <div class="chart-container">
+                        <canvas id="valueChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Loading state -->
+            <div class="loading-state" id="loadingState" style="display: none;">
+                <div class="glass-card">
+                    <div class="loading-content">
+                        <div class="loading-spinner"></div>
+                        <p>Fetching property data...</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Error state -->
+            <div class="error-state" id="errorState" style="display: none;">
+                <div class="glass-card">
+                    <div class="error-content">
+                        <i class="fas fa-exclamation-triangle error-icon"></i>
+                        <h3>Oops! Something went wrong</h3>
+                        <p id="errorMessage">Unable to fetch property data. Please try again.</p>
+                        <button class="retry-btn" id="retryBtn">Try Again</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
     
-    <script src="game.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
