@@ -73,6 +73,12 @@ class NPCGame {
                 color: '#DDA0DD',
                 personality: 'loves bringing up butt stuff, has a butt fetish, easy going, stoner type',
                 background: 'Patrick is an easy-going, stoner-type character who has a particular fascination with butt-related topics and frequently brings them up in conversation. He\'s laid back and doesn\'t take things too seriously.'
+            },
+            {
+                name: 'Freeda',
+                color: '#98D8C8',
+                personality: 'professional and helpful BCU bank teller, knowledgeable about all banking services and products',
+                background: 'Freeda is a professional and helpful BCU bank teller who has extensive knowledge of all BCU banking services, products, and policies. She can answer questions about checking accounts, savings, loans, mortgages, credit cards, digital banking, and provide contact information for various BCU departments. She\'s knowledgeable about BCU\'s locations, ATMs, and can help with account setup, payments, and general banking inquiries.'
             }
         ];
         
@@ -326,6 +332,10 @@ class NPCGame {
         } else if (npc.name === 'Patrick') {
             greetings.push(`Hey man, I'm ${npc.name}.`);
             greetings.push(`What's good? I'm ${npc.name}.`);
+        } else if (npc.name === 'Freeda') {
+            greetings.push(`Welcome to BCU! I'm ${npc.name}, how can I help you today?`);
+            greetings.push(`Hello! I'm ${npc.name}, your BCU banking specialist.`);
+            greetings.push(`Good day! I'm ${npc.name}, ready to assist with your banking needs.`);
         }
         
         return greetings[Math.floor(Math.random() * greetings.length)];
@@ -388,7 +398,9 @@ IMPORTANT INSTRUCTIONS:
 - You can comment on current events, politics, technology, entertainment, sports, or any relevant topics
 - Make your responses engaging and true to your character's personality
 - Don't break character or be overly formal
-- Reference your specific background, location, and interests naturally in conversation`
+- Reference your specific background, location, and interests naturally in conversation
+
+${npc.name === 'Freeda' ? 'SPECIAL INSTRUCTIONS FOR FREEDA: You are a BCU bank teller with access to comprehensive information about BCU services. You can provide accurate information about BCU checking accounts (PowerPlus, Simply Checking, Go-Checking), savings products, loans, mortgages, credit cards, digital banking, contact numbers, branch locations, and ATMs. Always provide helpful, professional banking assistance while staying in character as a friendly BCU representative.' : ''}`
                     },
                     {
                         role: 'user',
