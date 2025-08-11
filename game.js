@@ -9,7 +9,9 @@ class NPCGame {
         // Player
         this.player = {
             x: Math.floor(this.cols / 2),
-            y: Math.floor(this.rows / 2),
+            y: Math.floor(this.cols / 2),
+            displayX: Math.floor(this.cols / 2) * this.gridSize + this.gridSize / 2,
+            displayY: Math.floor(this.rows / 2) * this.gridSize + this.gridSize / 2,
             color: '#4CAF50'
         };
         
@@ -23,7 +25,10 @@ class NPCGame {
         this.currentNPC = null;
         this.apiKey = localStorage.getItem('openai_api_key') || '';
         this.lastMoveTime = 0;
-        this.moveCooldown = 150; // Milliseconds between moves
+        this.moveCooldown = 100; // Reduced for smoother movement
+        this.targetX = Math.floor(this.cols / 2);
+        this.targetY = Math.floor(this.rows / 2);
+        this.movementSpeed = 0.15; // Smoothing factor for movement
         
         // Initialize
         this.setupEventListeners();
@@ -53,17 +58,51 @@ class NPCGame {
     }
     
     generatePersonality() {
-        const traits = [
-            'friendly and outgoing',
-            'shy but curious',
-            'wise and philosophical',
-            'energetic and enthusiastic',
-            'calm and thoughtful',
-            'adventurous and bold',
-            'kind and nurturing',
-            'mysterious and intriguing'
+        const personalities = [
+            {
+                trait: 'sarcastic and witty',
+                description: 'sarcastic, witty, and loves making clever remarks',
+                weight: 3 // Higher weight for sarcastic personalities
+            },
+            {
+                trait: 'humorous and playful',
+                description: 'humorous, playful, and always cracking jokes',
+                weight: 2
+            },
+            {
+                trait: 'angry and confrontational',
+                description: 'angry, confrontational, and easily irritated',
+                weight: 1
+            },
+            {
+                trait: 'lustful and flirtatious',
+                description: 'lustful, flirtatious, and charmingly seductive',
+                weight: 1
+            },
+            {
+                trait: 'mean and critical',
+                description: 'mean, critical, and enjoys putting others down',
+                weight: 1
+            },
+            {
+                trait: 'happy and optimistic',
+                description: 'happy, optimistic, and always sees the bright side',
+                weight: 1
+            }
         ];
-        return traits[Math.floor(Math.random() * traits.length)];
+        
+        // Weighted random selection (more sarcastic NPCs)
+        const totalWeight = personalities.reduce((sum, p) => sum + p.weight, 0);
+        let random = Math.random() * totalWeight;
+        
+        for (const personality of personalities) {
+            random -= personality.weight;
+            if (random <= 0) {
+                return personality.description;
+            }
+        }
+        
+        return personalities[0].description; // Fallback to first option
     }
     
     isPositionOccupied(x, y) {
@@ -215,17 +254,21 @@ class NPCGame {
         if (Math.abs(dx) > Math.abs(dy)) {
             if (dx > 0 && !this.isPositionOccupied(this.player.x + 1, this.player.y)) {
                 this.player.x++;
+                this.targetX = this.player.x;
                 moved = true;
             } else if (dx < 0 && !this.isPositionOccupied(this.player.x - 1, this.player.y)) {
                 this.player.x--;
+                this.targetX = this.player.x;
                 moved = true;
             }
         } else {
             if (dy > 0 && !this.isPositionOccupied(this.player.x, this.player.y + 1)) {
                 this.player.y++;
+                this.targetY = this.player.y;
                 moved = true;
             } else if (dy < 0 && !this.isPositionOccupied(this.player.x, this.player.y - 1)) {
                 this.player.y--;
+                this.targetY = this.player.y;
                 moved = true;
             }
         }
@@ -303,21 +346,30 @@ class NPCGame {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${this.apiKey}`
                 },
-                body: JSON.stringify({
-                    model: 'gpt-3.5-turbo',
-                    messages: [
-                        {
-                            role: 'system',
-                            content: `You are ${npc.name}, a character who is ${npc.personality}. Always respond briefly and naturally as your character.`
-                        },
-                        {
-                            role: 'user',
-                            content: message
-                        }
-                    ],
-                    max_tokens: 100,
-                    temperature: 0.8
-                })
+                            body: JSON.stringify({
+                model: 'gpt-3.5-turbo',
+                messages: [
+                    {
+                        role: 'system',
+                        content: `You are ${npc.name}, a character who is ${npc.personality}. 
+
+IMPORTANT INSTRUCTIONS:
+- Always stay in character and respond as ${npc.name} would
+- Keep responses brief (1-2 sentences max)
+- Feel free to reference current events, news, pop culture, and recent developments
+- Be authentic to your personality - if you're sarcastic, be witty and clever; if you're angry, be confrontational; if you're lustful, be charmingly seductive
+- You can comment on current events, politics, technology, entertainment, sports, or any relevant topics
+- Make your responses engaging and true to your character's personality
+- Don't break character or be overly formal`
+                    },
+                    {
+                        role: 'user',
+                        content: message
+                    }
+                ],
+                max_tokens: 120,
+                temperature: 0.9
+            })
             });
             
             if (!response.ok) {
@@ -376,24 +428,28 @@ class NPCGame {
         if (this.keys['w'] || this.keys['arrowup']) {
             if (this.player.y > 0 && !this.isPositionOccupied(this.player.x, this.player.y - 1)) {
                 this.player.y--;
+                this.targetY = this.player.y;
                 moved = true;
             }
         }
         if (this.keys['s'] || this.keys['arrowdown']) {
             if (this.player.y < this.rows - 1 && !this.isPositionOccupied(this.player.x, this.player.y + 1)) {
                 this.player.y++;
+                this.targetY = this.player.y;
                 moved = true;
             }
         }
         if (this.keys['a'] || this.keys['arrowleft']) {
             if (this.player.x > 0 && !this.isPositionOccupied(this.player.x - 1, this.player.y)) {
                 this.player.x--;
+                this.targetX = this.player.x;
                 moved = true;
             }
         }
         if (this.keys['d'] || this.keys['arrowright']) {
             if (this.player.x < this.cols - 1 && !this.isPositionOccupied(this.player.x + 1, this.player.y)) {
                 this.player.x++;
+                this.targetX = this.player.x;
                 moved = true;
             }
         }
@@ -402,6 +458,13 @@ class NPCGame {
         if (moved) {
             this.lastMoveTime = currentTime;
         }
+        
+        // Smooth movement interpolation
+        const targetDisplayX = this.player.x * this.gridSize + this.gridSize / 2;
+        const targetDisplayY = this.player.y * this.gridSize + this.gridSize / 2;
+        
+        this.player.displayX += (targetDisplayX - this.player.displayX) * this.movementSpeed;
+        this.player.displayY += (targetDisplayY - this.player.displayY) * this.movementSpeed;
     }
     
     render() {
@@ -450,8 +513,8 @@ class NPCGame {
         this.ctx.fillStyle = this.player.color;
         this.ctx.beginPath();
         this.ctx.arc(
-            this.player.x * this.gridSize + this.gridSize / 2,
-            this.player.y * this.gridSize + this.gridSize / 2,
+            this.player.displayX,
+            this.player.displayY,
             this.gridSize / 2 - 2,
             0,
             2 * Math.PI
@@ -464,8 +527,8 @@ class NPCGame {
         this.ctx.textAlign = 'center';
         this.ctx.fillText(
             'YOU',
-            this.player.x * this.gridSize + this.gridSize / 2,
-            this.player.y * this.gridSize + this.gridSize + 15
+            this.player.displayX,
+            this.player.displayY + this.gridSize / 2 + 15
         );
     }
     
