@@ -27,13 +27,39 @@
             <div class="address-section" id="addressSection">
                 <div class="glass-card">
                     <h2>Enter Property Address</h2>
+                    
+                    <!-- API Configuration -->
+                    <div class="api-config-section">
+                        <div class="config-item">
+                            <label for="rentcastApiKey">RentCast API Key:</label>
+                            <input 
+                                type="password" 
+                                id="rentcastApiKey" 
+                                value="781535378a134991b5cbfc3a1df24acc"
+                                placeholder="Enter your RentCast API key"
+                            >
+                            <button class="test-api-btn" id="testApiBtn" onclick="homeTracker.testRentCastAPI()">
+                                <i class="fas fa-vial"></i>
+                                Test API
+                            </button>
+                        </div>
+                        <div class="config-item">
+                            <label for="googleApiKey">Google Maps API Key (Optional):</label>
+                            <input 
+                                type="password" 
+                                id="googleApiKey" 
+                                placeholder="Enter your Google Maps API key for better address autocomplete"
+                            >
+                        </div>
+                    </div>
+                    
                     <div class="address-input-container">
                         <div class="input-group">
                             <i class="fas fa-search input-icon"></i>
                             <input 
                                 type="text" 
                                 id="addressInput" 
-                                placeholder="Start typing an address..."
+                                placeholder="Start typing an address (e.g., 123 Main St, New York, NY)"
                                 autocomplete="off"
                             >
                             <div class="suggestions" id="suggestions"></div>
@@ -42,6 +68,17 @@
                             <i class="fas fa-search"></i>
                             Search
                         </button>
+                    </div>
+                    
+                    <div class="api-status">
+                        <div class="status-item">
+                            <i class="fas fa-circle status-icon" id="rentcastStatus"></i>
+                            <span>RentCast API</span>
+                        </div>
+                        <div class="status-item">
+                            <i class="fas fa-circle status-icon" id="googleStatus"></i>
+                            <span>Google Places</span>
+                        </div>
                     </div>
                 </div>
             </div>

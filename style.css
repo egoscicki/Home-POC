@@ -109,6 +109,114 @@ body {
     text-align: center;
 }
 
+/* API Configuration Section */
+.api-config-section {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.config-item {
+    margin-bottom: 1rem;
+}
+
+.config-item:last-child {
+    margin-bottom: 0;
+}
+
+.config-item label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #666;
+    margin-bottom: 0.5rem;
+}
+
+.config-item input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.8);
+    font-size: 0.9rem;
+    color: #1a1a1a;
+    transition: all 0.3s ease;
+}
+
+.config-item input:focus {
+    outline: none;
+    border-color: #007AFF;
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+}
+
+.test-api-btn {
+    background: linear-gradient(135deg, #FF9500 0%, #FF6B35 100%);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    box-shadow: 0 2px 8px rgba(255, 149, 0, 0.3);
+}
+
+.test-api-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(255, 149, 0, 0.4);
+}
+
+.test-api-btn:active {
+    transform: translateY(0);
+}
+
+/* API Status */
+.api-status {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    margin-top: 1rem;
+}
+
+.status-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.status-icon {
+    font-size: 0.8rem;
+    transition: color 0.3s ease;
+}
+
+.status-icon.connected {
+    color: #34C759;
+}
+
+.status-icon.disconnected {
+    color: #FF3B30;
+}
+
+.status-icon.loading {
+    color: #FF9500;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
 .address-input-container {
     display: flex;
     gap: 1rem;

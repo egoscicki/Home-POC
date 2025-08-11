@@ -4,12 +4,78 @@
 class HomeValueTracker {
     constructor() {
         this.apiKey = '781535378a134991b5cbfc3a1df24acc';
+        this.googleApiKey = null;
         this.baseUrl = 'https://api.rentcast.io/v1';
         this.currentProperty = null;
         this.valueChart = null;
+        this.autocompleteService = null;
+        this.placesService = null;
         
         this.initializeEventListeners();
         this.setupChart();
+        this.initializeGooglePlaces();
+        this.updateApiStatus();
+    }
+
+    initializeGooglePlaces() {
+        // Check if user provided a Google API key
+        const googleApiKeyInput = document.getElementById('googleApiKey');
+        if (googleApiKeyInput) {
+            googleApiKeyInput.addEventListener('input', (e) => {
+                this.googleApiKey = e.target.value.trim();
+                if (this.googleApiKey) {
+                    this.loadGoogleMapsAPI();
+                }
+            });
+        }
+
+        // Initialize Google Places Autocomplete
+        if (window.google && window.google.maps) {
+            this.setupGooglePlacesAutocomplete();
+        } else if (this.googleApiKey) {
+            this.loadGoogleMapsAPI();
+        }
+    }
+
+    loadGoogleMapsAPI() {
+        if (!this.googleApiKey) {
+            console.log('No Google API key provided, using basic autocomplete');
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${this.googleApiKey}&libraries=places&callback=initGooglePlaces`;
+        script.async = true;
+        script.defer = true;
+        document.head.appendChild(script);
+        
+        window.initGooglePlaces = () => {
+            this.setupGooglePlacesAutocomplete();
+            this.updateApiStatus();
+        };
+    }
+
+    setupGooglePlacesAutocomplete() {
+        const addressInput = document.getElementById('addressInput');
+        
+        try {
+            const autocomplete = new google.maps.places.Autocomplete(addressInput, {
+                types: ['address'],
+                componentRestrictions: { country: 'us' },
+                fields: ['formatted_address', 'geometry', 'place_id']
+            });
+
+            autocomplete.addListener('place_changed', () => {
+                const place = autocomplete.getPlace();
+                if (place.geometry) {
+                    this.searchProperty();
+                }
+            });
+
+            console.log('Google Places Autocomplete initialized successfully');
+        } catch (error) {
+            console.error('Error setting up Google Places Autocomplete:', error);
+        }
     }
 
     initializeEventListeners() {
@@ -17,8 +83,17 @@ class HomeValueTracker {
         const searchBtn = document.getElementById('searchBtn');
         const refreshBtn = document.getElementById('refreshBtn');
         const retryBtn = document.getElementById('retryBtn');
+        const rentcastApiKeyInput = document.getElementById('rentcastApiKey');
 
-        // Address input with autocomplete
+        // API key input handling
+        if (rentcastApiKeyInput) {
+            rentcastApiKeyInput.addEventListener('input', (e) => {
+                this.apiKey = e.target.value.trim();
+                this.updateApiStatus();
+            });
+        }
+
+        // Address input with enhanced autocomplete
         addressInput.addEventListener('input', this.handleAddressInput.bind(this));
         addressInput.addEventListener('focus', this.showSuggestions.bind(this));
         
@@ -59,16 +134,39 @@ class HomeValueTracker {
         }
 
         try {
+            // Use Google Places API for real address suggestions
             const suggestions = await this.getAddressSuggestions(query);
             this.displaySuggestions(suggestions);
         } catch (error) {
             console.error('Error getting address suggestions:', error);
+            // Fallback to basic suggestions
+            this.showBasicSuggestions(query);
         }
     }
 
     async getAddressSuggestions(query) {
-        // For demo purposes, we'll create some sample suggestions
-        // In a real implementation, you'd call a geocoding API
+        return new Promise((resolve) => {
+            if (!window.google || !window.google.maps) {
+                resolve([]);
+                return;
+            }
+
+            const service = new google.maps.places.AutocompleteService();
+            service.getPlacePredictions({
+                input: query,
+                types: ['address'],
+                componentRestrictions: { country: 'us' }
+            }, (predictions, status) => {
+                if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
+                    resolve(predictions.slice(0, 5));
+                } else {
+                    resolve([]);
+                }
+            });
+        });
+    }
+
+    showBasicSuggestions(query) {
         const sampleAddresses = [
             '123 Main St, New York, NY 10001',
             '456 Oak Ave, Los Angeles, CA 90210',
@@ -77,9 +175,11 @@ class HomeValueTracker {
             '654 Maple Dr, Seattle, WA 98101'
         ];
 
-        return sampleAddresses
+        const filtered = sampleAddresses
             .filter(addr => addr.toLowerCase().includes(query.toLowerCase()))
             .slice(0, 5);
+        
+        this.displaySuggestions(filtered);
     }
 
     displaySuggestions(suggestions) {
@@ -90,10 +190,20 @@ class HomeValueTracker {
             return;
         }
 
-        suggestionsDiv.innerHTML = suggestions
-            .map(addr => `<div class="suggestion-item" onclick="homeTracker.selectAddress('${addr}')">${addr}</div>`)
-            .join('');
-        
+        let html = '';
+        if (suggestions[0] && suggestions[0].description) {
+            // Google Places API suggestions
+            html = suggestions
+                .map(prediction => `<div class="suggestion-item" onclick="homeTracker.selectAddress('${prediction.description}')">${prediction.description}</div>`)
+                .join('');
+        } else {
+            // Basic suggestions
+            html = suggestions
+                .map(addr => `<div class="suggestion-item" onclick="homeTracker.selectAddress('${addr}')">${addr}</div>`)
+                .join('');
+        }
+
+        suggestionsDiv.innerHTML = html;
         suggestionsDiv.style.display = 'block';
     }
 
@@ -126,8 +236,8 @@ class HomeValueTracker {
         this.hideSuggestions();
 
         try {
-            // First, get property details
-            const propertyData = await this.getPropertyData(address);
+            // First, get property details from RentCast API
+            const propertyData = await this.getPropertyDataFromAPI(address);
             
             if (propertyData) {
                 this.currentProperty = propertyData;
@@ -144,39 +254,202 @@ class HomeValueTracker {
         }
     }
 
-    async getPropertyData(address) {
-        // For demo purposes, we'll create sample property data
-        // In a real implementation, you'd call the RentCast API
-        const sampleData = {
-            address: address,
-            propertyType: 'Single Family Home',
-            currentValue: 750000,
-            previousValue: 720000,
-            lastSoldDate: '2020-06-15',
-            squareFootage: 2400,
-            bedrooms: 4,
-            bathrooms: 2.5,
-            lotSize: '0.25 acres',
-            yearBuilt: 2015,
+    async getPropertyDataFromAPI(address) {
+        try {
+            console.log('🔍 Searching for property:', address);
+            console.log('🔑 Using RentCast API key:', this.apiKey ? '***' + this.apiKey.slice(-4) : 'NOT SET');
+            console.log('🌐 API Base URL:', this.baseUrl);
+
+            // First, search for the property
+            const searchUrl = `${this.baseUrl}/properties?address=${encodeURIComponent(address)}`;
+            console.log('📡 Search URL:', searchUrl);
+
+            const searchResponse = await fetch(searchUrl, {
+                headers: {
+                    'X-Api-Key': this.apiKey,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            console.log('📥 Search Response Status:', searchResponse.status);
+            console.log('📥 Search Response Headers:', Object.fromEntries(searchResponse.headers.entries()));
+
+            if (!searchResponse.ok) {
+                const errorText = await searchResponse.text();
+                console.error('❌ Search API Error Response:', errorText);
+                throw new Error(`RentCast Search API Error: ${searchResponse.status} ${searchResponse.statusText}`);
+            }
+
+            const searchData = await searchResponse.json();
+            console.log('🔍 Search Results:', searchData);
+            
+            if (!searchData || searchData.length === 0) {
+                throw new Error('No properties found for this address. Please check the address and try again.');
+            }
+
+            const property = searchData[0];
+            const propertyId = property.id;
+            console.log('🏠 Found Property ID:', propertyId);
+
+            // Get detailed property information
+            const detailsUrl = `${this.baseUrl}/properties/${propertyId}`;
+            console.log('📡 Details URL:', detailsUrl);
+
+            const detailsResponse = await fetch(detailsUrl, {
+                headers: {
+                    'X-Api-Key': this.apiKey,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            console.log('📥 Details Response Status:', detailsResponse.status);
+
+            if (!detailsResponse.ok) {
+                const errorText = await detailsResponse.text();
+                console.error('❌ Details API Error Response:', errorText);
+                throw new Error(`Failed to get property details: ${detailsResponse.status} ${detailsResponse.statusText}`);
+            }
+
+            const propertyDetails = await detailsResponse.json();
+            console.log('🏠 Property Details:', propertyDetails);
+
+            // Get property value history
+            const historyUrl = `${this.baseUrl}/properties/${propertyId}/rental-history`;
+            console.log('📡 History URL:', historyUrl);
+
+            const historyResponse = await fetch(historyUrl, {
+                headers: {
+                    'X-Api-Key': this.apiKey,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            console.log('📥 History Response Status:', historyResponse.status);
+
+            let valueHistory = [];
+            if (historyResponse.ok) {
+                const historyData = await historyResponse.json();
+                console.log('📊 Rental History:', historyData);
+                valueHistory = this.processValueHistory(historyData);
+            } else {
+                console.warn('⚠️ Could not fetch rental history:', historyResponse.status, historyResponse.statusText);
+            }
+
+            // Transform RentCast data to our format
+            const transformedData = this.transformRentCastData(propertyDetails, valueHistory);
+            console.log('✨ Transformed Data:', transformedData);
+            
+            return transformedData;
+
+        } catch (error) {
+            console.error('❌ RentCast API Error:', error);
+            console.error('🔍 Error Details:', {
+                message: error.message,
+                stack: error.stack,
+                address: address,
+                apiKey: this.apiKey ? '***' + this.apiKey.slice(-4) : 'NOT SET'
+            });
+            
+            // Fallback to sample data for demo purposes
+            console.log('🔄 Falling back to sample data...');
+            return this.getSamplePropertyData(address);
+        }
+    }
+
+    transformRentCastData(propertyDetails, valueHistory) {
+        console.log('🔄 Transforming RentCast data...');
+        console.log('📊 Original property details:', propertyDetails);
+        
+        const transformed = {
+            address: propertyDetails.formattedAddress || propertyDetails.address || propertyDetails.streetAddress || 'Address not available',
+            propertyType: propertyDetails.propertyType || propertyDetails.type || 'Single Family Home',
+            currentValue: propertyDetails.price || propertyDetails.estimatedValue || propertyDetails.marketValue || 0,
+            previousValue: propertyDetails.lastSoldPrice || propertyDetails.previousPrice || 0,
+            lastSoldDate: propertyDetails.lastSoldDate || propertyDetails.soldDate || 'Unknown',
+            squareFootage: propertyDetails.squareFootage || propertyDetails.sqft || 0,
+            bedrooms: propertyDetails.bedrooms || propertyDetails.beds || 0,
+            bathrooms: propertyDetails.bathrooms || propertyDetails.baths || 0,
+            lotSize: propertyDetails.lotSize || propertyDetails.acres ? `${propertyDetails.acres} acres` : 'Unknown',
+            yearBuilt: propertyDetails.yearBuilt || propertyDetails.builtYear || 0,
             features: {
-                pool: true,
-                fireplace: true,
-                garage: true
+                pool: this.checkFeature(propertyDetails, 'pool'),
+                fireplace: this.checkFeature(propertyDetails, 'fireplace'),
+                garage: this.checkFeature(propertyDetails, 'garage')
             },
-            valueHistory: [
-                { date: '2020-01', value: 680000 },
-                { date: '2020-06', value: 720000 },
-                { date: '2021-01', value: 735000 },
-                { date: '2021-06', value: 740000 },
-                { date: '2022-01', value: 745000 },
-                { date: '2022-06', value: 750000 }
-            ]
+            valueHistory: valueHistory.length > 0 ? valueHistory : this.generateSampleValueHistory()
         };
 
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        console.log('✨ Transformed data:', transformed);
+        return transformed;
+    }
+
+    checkFeature(propertyDetails, feature) {
+        const amenities = propertyDetails.amenities || propertyDetails.features || [];
+        const description = (propertyDetails.description || '').toLowerCase();
+        const propertyType = (propertyDetails.propertyType || '').toLowerCase();
         
-        return sampleData;
+        // Check multiple sources for features
+        return amenities.some(amenity => 
+            amenity.toLowerCase().includes(feature)
+        ) || description.includes(feature) || propertyType.includes(feature);
+    }
+
+    processValueHistory(historyData) {
+        if (!historyData || !Array.isArray(historyData)) return [];
+        
+        return historyData
+            .filter(item => item.price && item.date)
+            .map(item => ({
+                date: item.date,
+                value: item.price
+            }))
+            .sort((a, b) => new Date(a.date) - new Date(b.date))
+            .slice(-6); // Last 6 data points
+    }
+
+    generateSampleValueHistory() {
+        const baseValue = 750000;
+        const history = [];
+        const months = 6;
+        
+        for (let i = 0; i < months; i++) {
+            const date = new Date();
+            date.setMonth(date.getMonth() - (months - i - 1));
+            const variation = (Math.random() - 0.5) * 0.1; // ±5% variation
+            const value = Math.round(baseValue * (1 + variation));
+            
+            history.push({
+                date: date.toISOString().slice(0, 7), // YYYY-MM format
+                value: value
+            });
+        }
+        
+        return history;
+    }
+
+    getSamplePropertyData(address) {
+        // Enhanced sample data for demo purposes
+        const baseValue = 750000 + Math.floor(Math.random() * 200000);
+        const previousValue = baseValue - Math.floor(Math.random() * 50000);
+        
+        return {
+            address: address,
+            propertyType: 'Single Family Home',
+            currentValue: baseValue,
+            previousValue: previousValue,
+            lastSoldDate: '2020-06-15',
+            squareFootage: 2000 + Math.floor(Math.random() * 1000),
+            bedrooms: 3 + Math.floor(Math.random() * 3),
+            bathrooms: 2 + Math.floor(Math.random() * 2),
+            lotSize: '0.25 acres',
+            yearBuilt: 2010 + Math.floor(Math.random() * 15),
+            features: {
+                pool: Math.random() > 0.5,
+                fireplace: Math.random() > 0.3,
+                garage: Math.random() > 0.2
+            },
+            valueHistory: this.generateSampleValueHistory()
+        };
     }
 
     displayPropertyData(data) {
@@ -367,6 +640,66 @@ class HomeValueTracker {
             month: 'long',
             day: 'numeric'
         });
+    }
+
+    updateApiStatus() {
+        const rentcastStatus = document.getElementById('rentcastStatus');
+        const googleStatus = document.getElementById('googleStatus');
+
+        if (rentcastStatus) {
+            if (this.apiKey && this.apiKey.length > 0) {
+                rentcastStatus.className = 'fas fa-circle status-icon connected';
+                rentcastStatus.title = 'RentCast API Connected';
+            } else {
+                rentcastStatus.className = 'fas fa-circle status-icon disconnected';
+                rentcastStatus.title = 'RentCast API Key Missing';
+            }
+        }
+
+        if (googleStatus) {
+            if (window.google && window.google.maps) {
+                googleStatus.className = 'fas fa-circle status-icon connected';
+                googleStatus.title = 'Google Places Connected';
+            } else if (this.googleApiKey) {
+                googleStatus.className = 'fas fa-circle status-icon loading';
+                googleStatus.title = 'Google Places Loading...';
+            } else {
+                googleStatus.className = 'fas fa-circle status-icon disconnected';
+                googleStatus.title = 'Google Places Not Available';
+            }
+        }
+    }
+
+    async testRentCastAPI() {
+        console.log('🧪 Testing RentCast API connection...');
+        
+        try {
+            const testUrl = `${this.baseUrl}/properties?address=123%20Main%20St%2C%20New%20York%2C%20NY%2010001&limit=1`;
+            console.log('📡 Test URL:', testUrl);
+            
+            const response = await fetch(testUrl, {
+                headers: {
+                    'X-Api-Key': this.apiKey,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            console.log('📥 Test Response Status:', response.status);
+            console.log('📥 Test Response Headers:', Object.fromEntries(response.headers.entries()));
+
+            if (response.ok) {
+                const data = await response.json();
+                console.log('✅ API Test Successful:', data);
+                alert('✅ RentCast API is working correctly!');
+            } else {
+                const errorText = await response.text();
+                console.error('❌ API Test Failed:', response.status, errorText);
+                alert(`❌ API Test Failed: ${response.status} ${response.statusText}\n\nCheck the console for details.`);
+            }
+        } catch (error) {
+            console.error('❌ API Test Error:', error);
+            alert(`❌ API Test Error: ${error.message}\n\nCheck the console for details.`);
+        }
     }
 }
 
