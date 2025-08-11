@@ -46,14 +46,31 @@ class HomeValueTracker {
             const autocomplete = new google.maps.places.Autocomplete(addressInput, {
                 types: ['address'],
                 componentRestrictions: { country: 'us' },
-                fields: ['formatted_address', 'geometry', 'place_id', 'photos']
+                fields: ['formatted_address', 'geometry', 'place_id', 'photos', 'name']
             });
 
             autocomplete.addListener('place_changed', () => {
                 const place = autocomplete.getPlace();
+                console.log('📍 Place selected:', place);
+                
                 if (place.geometry) {
                     // Store the place data for image fetching
                     this.selectedPlace = place;
+                    
+                    // If the place has photos, log them
+                    if (place.photos && place.photos.length > 0) {
+                        console.log('📸 Place has photos:', place.photos.length);
+                        place.photos.forEach((photo, index) => {
+                            console.log(`📸 Photo ${index}:`, {
+                                width: photo.width,
+                                height: photo.height,
+                                htmlAttributions: photo.htmlAttributions
+                            });
+                        });
+                    } else {
+                        console.log('⚠️ Place has no photos, will try to fetch them later');
+                    }
+                    
                     this.searchProperty();
                 }
             });
@@ -146,11 +163,11 @@ class HomeValueTracker {
 
     showBasicSuggestions(query) {
         const sampleAddresses = [
-            '123 Main St, New York, NY 10001',
-            '456 Oak Ave, Los Angeles, CA 90210',
-            '789 Pine Rd, Chicago, IL 60601',
-            '321 Elm St, Miami, FL 33101',
-            '654 Maple Dr, Seattle, WA 98101'
+            '1600 Pennsylvania Avenue NW, Washington, DC 20500',
+            '1 Times Square, New York, NY 10036',
+            '350 Fifth Avenue, New York, NY 10118',
+            '1111 Lincoln Road, Miami Beach, FL 33139',
+            '3601 S Las Vegas Blvd, Las Vegas, NV 89109'
         ];
 
         const filtered = sampleAddresses
@@ -244,11 +261,26 @@ class HomeValueTracker {
     async fetchAndDisplayPropertyImage(place) {
         try {
             console.log('🖼️ Fetching property image for place:', place);
+            console.log('🔍 Place details:', {
+                placeId: place.place_id,
+                name: place.name,
+                formattedAddress: place.formatted_address,
+                hasPhotos: place.photos ? place.photos.length : 0
+            });
             
             if (!place.photos || place.photos.length === 0) {
-                console.log('⚠️ No photos available for this property');
-                this.showImagePlaceholder();
-                return;
+                console.log('⚠️ No photos available in place data, trying to fetch from Places API...');
+                
+                // Try to get photos using Places API
+                const photo = await this.getPhotoFromPlacesAPI(place.place_id);
+                if (photo) {
+                    await this.displayPhotoFromPlacesAPI(photo);
+                    return;
+                } else {
+                    console.log('⚠️ No photos found via Places API either');
+                    this.showImagePlaceholder();
+                    return;
+                }
             }
 
             // Show loading state for image
@@ -256,6 +288,11 @@ class HomeValueTracker {
 
             // Get the first photo (usually the best one)
             const photo = place.photos[0];
+            console.log('📸 Using photo from place data:', {
+                width: photo.width,
+                height: photo.height
+            });
+            
             const maxWidth = 600; // Optimal size for display
             
             // Request the photo with specific dimensions
@@ -271,6 +308,56 @@ class HomeValueTracker {
 
         } catch (error) {
             console.error('❌ Error fetching property image:', error);
+            this.showImagePlaceholder();
+        }
+    }
+
+    async getPhotoFromPlacesAPI(placeId) {
+        return new Promise((resolve) => {
+            if (!window.google || !window.google.maps) {
+                console.log('⚠️ Google Maps not available');
+                resolve(null);
+                return;
+            }
+
+            try {
+                const placesService = new google.maps.places.PlacesService(document.createElement('div'));
+                
+                placesService.getDetails({
+                    placeId: placeId,
+                    fields: ['photos', 'formatted_address']
+                }, (placeDetails, status) => {
+                    console.log('🔍 Places API response:', { status, placeDetails });
+                    
+                    if (status === 'OK' && placeDetails && placeDetails.photos && placeDetails.photos.length > 0) {
+                        console.log('📸 Found photos via Places API:', placeDetails.photos.length);
+                        resolve(placeDetails.photos[0]);
+                    } else {
+                        console.log('⚠️ No photos found via Places API:', status);
+                        resolve(null);
+                    }
+                });
+            } catch (error) {
+                console.error('❌ Error calling Places API:', error);
+                resolve(null);
+            }
+        });
+    }
+
+    async displayPhotoFromPlacesAPI(photo) {
+        try {
+            this.showImageLoading();
+            
+            const photoUrl = photo.getUrl({
+                maxWidth: 600,
+                maxHeight: 400
+            });
+            
+            console.log('📸 Photo URL from Places API:', photoUrl);
+            await this.displayPropertyImage(photoUrl);
+            
+        } catch (error) {
+            console.error('❌ Error displaying photo from Places API:', error);
             this.showImagePlaceholder();
         }
     }
@@ -340,18 +427,26 @@ class HomeValueTracker {
             
             return new Promise((resolve, reject) => {
                 geocoder.geocode({ address: address }, (results, status) => {
+                    console.log('🌍 Geocoding results:', { status, resultsCount: results ? results.length : 0 });
+                    
                     if (status === 'OK' && results[0]) {
                         const place = results[0];
-                        console.log('📍 Geocoded place:', place);
+                        console.log('📍 Geocoded place:', {
+                            placeId: place.place_id,
+                            formattedAddress: place.formatted_address,
+                            geometry: place.geometry
+                        });
                         
                         // Use Places API to get photos
                         const placesService = new google.maps.places.PlacesService(document.createElement('div'));
                         
                         placesService.getDetails({
                             placeId: place.place_id,
-                            fields: ['photos']
+                            fields: ['photos', 'formatted_address', 'name']
                         }, (placeDetails, placeStatus) => {
-                            if (placeStatus === 'OK' && placeDetails && placeDetails.photos) {
+                            console.log('🔍 Places API details response:', { placeStatus, placeDetails });
+                            
+                            if (placeStatus === 'OK' && placeDetails && placeDetails.photos && placeDetails.photos.length > 0) {
                                 console.log('📸 Found photos for address:', placeDetails.photos.length);
                                 const photo = placeDetails.photos[0];
                                 
@@ -362,10 +457,11 @@ class HomeValueTracker {
                                     maxHeight: 400
                                 });
                                 
+                                console.log('📸 Photo URL from address search:', photoUrl);
                                 this.displayPropertyImage(photoUrl);
                                 resolve(photo);
                             } else {
-                                console.log('⚠️ No photos found for address');
+                                console.log('⚠️ No photos found for address via Places API:', placeStatus);
                                 this.showImagePlaceholder();
                                 resolve(null);
                             }
@@ -823,6 +919,54 @@ class HomeValueTracker {
         } catch (error) {
             console.error('❌ API Test Error:', error);
             alert(`❌ API Test Error: ${error.message}\n\nCheck the console for details.`);
+        }
+    }
+
+    async testGooglePlacesAPI() {
+        console.log('🧪 Testing Google Places API...');
+        
+        if (!window.google || !window.google.maps) {
+            console.log('⚠️ Google Maps not loaded yet');
+            alert('⚠️ Google Maps not loaded yet. Please wait a moment and try again.');
+            return;
+        }
+
+        try {
+            // Test with a well-known address that should have photos
+            const testAddress = '1600 Pennsylvania Avenue NW, Washington, DC 20500';
+            console.log('🔍 Testing with address:', testAddress);
+            
+            const geocoder = new google.maps.Geocoder();
+            
+            geocoder.geocode({ address: testAddress }, (results, status) => {
+                if (status === 'OK' && results[0]) {
+                    const place = results[0];
+                    console.log('📍 Test geocoding successful:', place.place_id);
+                    
+                    const placesService = new google.maps.places.PlacesService(document.createElement('div'));
+                    
+                    placesService.getDetails({
+                        placeId: place.place_id,
+                        fields: ['photos', 'formatted_address', 'name']
+                    }, (placeDetails, placeStatus) => {
+                        if (placeStatus === 'OK' && placeDetails) {
+                            console.log('✅ Google Places API test successful:', placeDetails);
+                            const photoCount = placeDetails.photos ? placeDetails.photos.length : 0;
+                            alert(`✅ Google Places API is working!\n\nFound ${photoCount} photos for the test address.`);
+                        } else {
+                            console.error('❌ Google Places API test failed:', placeStatus);
+                            alert(`❌ Google Places API test failed: ${placeStatus}`);
+                        }
+                    });
+                } else {
+                    console.error('❌ Test geocoding failed:', status);
+                    alert(`❌ Test geocoding failed: ${status}`);
+                }
+            });
+            
+        } catch (error) {
+            console.error('❌ Google Places API test error:', error);
+            alert(`❌ Google Places API test error: ${error.message}`);
         }
     }
 }
