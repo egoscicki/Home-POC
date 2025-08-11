@@ -37,37 +37,64 @@ class HomeValueTracker {
                 return;
             }
 
-            // Check if we're in a deployment environment that might block Google APIs
-            const isDeployed = window.location.hostname !== 'localhost' && 
-                              window.location.hostname !== '127.0.0.1' && 
-                              !window.location.hostname.includes('localhost');
+            // Enhanced deployment environment detection
+            const currentHost = window.location.hostname;
+            const isDeployed = currentHost !== 'localhost' && 
+                              currentHost !== '127.0.0.1' && 
+                              !currentHost.includes('localhost') &&
+                              !currentHost.includes('127.0.0.1');
+            
+            console.log('🌍 Current hostname:', currentHost);
+            console.log('🚀 Deployment detected:', isDeployed);
             
             if (isDeployed) {
                 console.log('🌍 Detected deployment environment, checking Google API accessibility...');
+                console.log('💡 Domain:', currentHost);
+                console.log('🔑 API Key being used:', this.googleApiKey.substring(0, 10) + '...');
             }
 
+            // Create script element with enhanced error handling
             const script = document.createElement('script');
             script.src = `https://maps.googleapis.com/maps/api/js?key=${this.googleApiKey}&libraries=places&callback=initGooglePlaces&v=weekly`;
             script.async = true;
             script.defer = true;
+            
+            // Enhanced error handling
             script.onerror = (error) => {
                 console.error('❌ Failed to load Google Maps API script:', error);
+                console.error('🔍 Script loading failed for URL:', script.src);
                 this.handleGoogleMapsLoadError();
+            };
+            
+            // Add load event listener
+            script.onload = () => {
+                console.log('📜 Google Maps script loaded successfully');
             };
             
             document.head.appendChild(script);
             
-            // Set timeout for script loading
+            // Set timeout for script loading with deployment-specific timing
+            const timeoutDuration = isDeployed ? 15000 : 10000; // Longer timeout for deployment
             const loadTimeout = setTimeout(() => {
-                console.warn('⚠️ Google Maps API script loading timeout');
+                console.warn(`⚠️ Google Maps API script loading timeout after ${timeoutDuration}ms`);
+                console.warn('🌍 This is common in deployment environments due to network restrictions');
                 this.handleGoogleMapsLoadError();
-            }, 10000); // 10 second timeout
+            }, timeoutDuration);
             
+            // Global callback function
             window.initGooglePlaces = () => {
                 clearTimeout(loadTimeout);
                 console.log('✅ Google Maps API loaded successfully');
-                this.setupGooglePlacesAutocomplete();
-                this.updateApiStatus();
+                
+                // Additional verification
+                if (window.google && window.google.maps && window.google.maps.places) {
+                    console.log('🔍 Google Maps API verification successful');
+                    this.setupGooglePlacesAutocomplete();
+                    this.updateApiStatus();
+                } else {
+                    console.error('❌ Google Maps API verification failed - API not properly loaded');
+                    this.handleGoogleMapsLoadError();
+                }
             };
             
         } catch (error) {
@@ -86,14 +113,55 @@ class HomeValueTracker {
             addressInput.placeholder = 'Enter address manually (Google Places unavailable)';
         }
         
-        // Show deployment-specific message if applicable
-        const isDeployed = window.location.hostname !== 'localhost' && 
-                          window.location.hostname !== '127.0.0.1' && 
-                          !window.location.hostname.includes('localhost');
+        // Enhanced deployment-specific messaging
+        const currentHost = window.location.hostname;
+        const isDeployed = currentHost !== 'localhost' && 
+                          currentHost !== '127.0.0.1' && 
+                          !currentHost.includes('localhost') &&
+                          !currentHost.includes('127.0.0.1');
         
         if (isDeployed) {
-            console.log('🌍 Google Places unavailable in deployment environment - this is common due to domain restrictions');
-            console.log('💡 Consider: 1) Adding your domain to Google API key restrictions, 2) Using a different API key for production');
+            console.log('🌍 Google Places unavailable in deployment environment');
+            console.log('💡 Deployment domain:', currentHost);
+            console.log('🔧 Common causes and solutions:');
+            console.log('   1. Domain not added to Google API key restrictions');
+            console.log('   2. API key restrictions too strict');
+            console.log('   3. CORS policies blocking script loading');
+            console.log('   4. Network/firewall restrictions');
+            
+            // Show deployment-specific notification
+            this.showDeploymentNotification(currentHost);
+        }
+    }
+
+    showDeploymentNotification(domain) {
+        const notification = document.createElement('div');
+        notification.className = 'deployment-notification';
+        notification.innerHTML = `
+            <div class="notification-content">
+                <i class="fas fa-exclamation-triangle"></i>
+                <div class="notification-text">
+                    <strong>Google Places Unavailable</strong>
+                    <span>Domain: ${domain}</span>
+                    <small>This is common in AWS deployments. Check Google API key restrictions.</small>
+                </div>
+                <button class="notification-close" onclick="this.parentElement.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        
+        // Add to the page
+        const container = document.querySelector('.app-container');
+        if (container) {
+            container.insertBefore(notification, container.firstChild);
+            
+            // Auto-remove after 15 seconds
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.remove();
+                }
+            }, 15000);
         }
     }
 
@@ -1432,9 +1500,26 @@ class HomeValueTracker {
     async testGooglePlacesAPI() {
         console.log('🧪 Testing Google Places API and Street View...');
         
+        // Check deployment environment
+        const currentHost = window.location.hostname;
+        const isDeployed = currentHost !== 'localhost' && 
+                          currentHost !== '127.0.0.1' && 
+                          !currentHost.includes('localhost') &&
+                          !currentHost.includes('127.0.0.1');
+        
+        if (isDeployed) {
+            console.log('🌍 Testing in deployment environment:', currentHost);
+            console.log('🔑 API Key being used:', this.googleApiKey.substring(0, 10) + '...');
+        }
+        
         if (!window.google || !window.google.maps) {
             console.log('⚠️ Google Maps not loaded yet');
-            alert('⚠️ Google Maps not loaded yet. Please wait a moment and try again.');
+            
+            if (isDeployed) {
+                alert(`⚠️ Google Maps not loaded in deployment environment\n\n🌍 Domain: ${currentHost}\n🔑 API Key: ${this.googleApiKey.substring(0, 10)}...\n\n🔧 Common issues:\n1. Domain not in API key restrictions\n2. CORS policies blocking script\n3. Network/firewall restrictions\n\n💡 Check Google Cloud Console for domain restrictions.`);
+            } else {
+                alert('⚠️ Google Maps not loaded yet. Please wait a moment and try again.');
+            }
             return;
         }
 
@@ -1456,7 +1541,10 @@ class HomeValueTracker {
                         this.getStreetViewImage(place.geometry.location).then(streetViewImage => {
                             if (streetViewImage) {
                                 console.log('✅ Street View test successful');
-                                alert('✅ Google Street View API is working!\n\nStreet View images will be displayed for properties.');
+                                const successMessage = isDeployed 
+                                    ? `✅ Google Street View API is working in deployment!\n\n🌍 Domain: ${currentHost}\n🔑 API Key: ${this.googleApiKey.substring(0, 10)}...\n\n✅ All Google APIs are functioning correctly.`
+                                    : '✅ Google Street View API is working!\n\nStreet View images will be displayed for properties.';
+                                alert(successMessage);
                             } else {
                                 console.log('⚠️ Street View not available, testing Places API...');
                                 this.testPlacesAPI(place.place_id);
@@ -1468,13 +1556,19 @@ class HomeValueTracker {
                     }
                 } else {
                     console.error('❌ Test geocoding failed:', status);
-                    alert(`❌ Test geocoding failed: ${status}`);
+                    const errorMessage = isDeployed
+                        ? `❌ Test geocoding failed: ${status}\n\n🌍 Domain: ${currentHost}\n🔑 API Key: ${this.googleApiKey.substring(0, 10)}...\n\n🔧 This suggests the API key may have domain restrictions.`
+                        : `❌ Test geocoding failed: ${status}`;
+                    alert(errorMessage);
                 }
             });
             
         } catch (error) {
             console.error('❌ Google API test error:', error);
-            alert(`❌ Google API test error: ${error.message}`);
+            const errorMessage = isDeployed
+                ? `❌ Google API test error: ${error.message}\n\n🌍 Domain: ${currentHost}\n🔑 API Key: ${this.googleApiKey.substring(0, 10)}...\n\n🔧 Check Google Cloud Console for:\n1. Domain restrictions\n2. API enablement\n3. Billing status`
+                : `❌ Google API test error: ${error.message}`;
+            alert(errorMessage);
         }
     }
 
