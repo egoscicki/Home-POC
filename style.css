@@ -520,6 +520,27 @@ body {
     transform: scale(1.05);
 }
 
+.street-view-attribution {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    backdrop-filter: blur(4px);
+}
+
+.street-view-attribution i {
+    color: #34C759;
+    font-size: 0.8rem;
+}
+
 .image-placeholder {
     display: flex;
     flex-direction: column;

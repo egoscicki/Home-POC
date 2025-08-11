@@ -268,46 +268,139 @@ class HomeValueTracker {
                 hasPhotos: place.photos ? place.photos.length : 0
             });
             
-            if (!place.photos || place.photos.length === 0) {
-                console.log('⚠️ No photos available in place data, trying to fetch from Places API...');
-                
-                // Try to get photos using Places API
-                const photo = await this.getPhotoFromPlacesAPI(place.place_id);
-                if (photo) {
-                    await this.displayPhotoFromPlacesAPI(photo);
-                    return;
-                } else {
-                    console.log('⚠️ No photos found via Places API either');
-                    this.showImagePlaceholder();
+            // Try to get Street View image using coordinates
+            if (place.geometry && place.geometry.location) {
+                const streetViewImage = await this.getStreetViewImage(place.geometry.location);
+                if (streetViewImage) {
+                    await this.displayStreetViewImage(streetViewImage);
                     return;
                 }
             }
-
-            // Show loading state for image
-            this.showImageLoading();
-
-            // Get the first photo (usually the best one)
-            const photo = place.photos[0];
-            console.log('📸 Using photo from place data:', {
-                width: photo.width,
-                height: photo.height
-            });
             
-            const maxWidth = 600; // Optimal size for display
+            // Fallback to Places API photos if Street View fails
+            if (place.photos && place.photos.length > 0) {
+                console.log('⚠️ Street View failed, using Places API photos as fallback');
+                await this.displayPlacesPhoto(place.photos[0]);
+                return;
+            }
             
-            // Request the photo with specific dimensions
-            const photoUrl = photo.getUrl({
-                maxWidth: maxWidth,
-                maxHeight: 400
-            });
-
-            console.log('📸 Photo URL:', photoUrl);
-
-            // Create and display the image
-            await this.displayPropertyImage(photoUrl);
+            // Final fallback - try to get photos using Places API
+            console.log('⚠️ No photos available in place data, trying to fetch from Places API...');
+            const photo = await this.getPhotoFromPlacesAPI(place.place_id);
+            if (photo) {
+                await this.displayPlacesPhoto(photo);
+                return;
+            } else {
+                console.log('⚠️ No photos found via any method');
+                this.showImagePlaceholder();
+                return;
+            }
 
         } catch (error) {
             console.error('❌ Error fetching property image:', error);
+            this.showImagePlaceholder();
+        }
+    }
+
+    async getStreetViewImage(location) {
+        return new Promise((resolve) => {
+            if (!window.google || !window.google.maps) {
+                console.log('⚠️ Google Maps not available');
+                resolve(null);
+                return;
+            }
+
+            try {
+                console.log('📸 Getting Street View image for location:', location);
+                
+                // Create Street View service
+                const streetViewService = new google.maps.StreetViewService();
+                
+                // Check if Street View is available at this location
+                streetViewService.getPanorama({
+                    location: location,
+                    radius: 50, // 50 meters radius
+                    source: google.maps.StreetViewSource.OUTDOOR
+                }, (data, status) => {
+                    if (status === 'OK') {
+                        console.log('✅ Street View available at location');
+                        
+                        // Get the Street View panorama
+                        const panorama = new google.maps.StreetViewPanorama(document.createElement('div'));
+                        panorama.setPosition(location);
+                        
+                        // Get Street View image URL
+                        const streetViewUrl = this.getStreetViewImageUrl(location);
+                        console.log('📸 Street View URL:', streetViewUrl);
+                        
+                        resolve(streetViewUrl);
+                    } else {
+                        console.log('⚠️ Street View not available at location:', status);
+                        resolve(null);
+                    }
+                });
+                
+            } catch (error) {
+                console.error('❌ Error getting Street View image:', error);
+                resolve(null);
+            }
+        });
+    }
+
+    getStreetViewImageUrl(location) {
+        // Create Street View image URL with optimal parameters
+        const baseUrl = 'https://maps.googleapis.com/maps/api/streetview';
+        const params = new URLSearchParams({
+            size: '600x400', // Optimal size for display
+            location: `${location.lat()},${location.lng()}`,
+            heading: '0', // North-facing
+            pitch: '0', // Level view
+            fov: '90', // Field of view (wide angle)
+            key: this.googleApiKey
+        });
+        
+        return `${baseUrl}?${params.toString()}`;
+    }
+
+    async displayStreetViewImage(imageUrl) {
+        try {
+            this.showImageLoading();
+            
+            // Create and display the Street View image
+            await this.displayPropertyImage(imageUrl);
+            
+            // Add Street View attribution
+            const propertyImageDiv = document.getElementById('propertyImage');
+            if (propertyImageDiv && propertyImageDiv.querySelector('img')) {
+                const attribution = document.createElement('div');
+                attribution.className = 'street-view-attribution';
+                attribution.innerHTML = `
+                    <i class="fas fa-street-view"></i>
+                    <span>Street View</span>
+                `;
+                propertyImageDiv.appendChild(attribution);
+            }
+            
+        } catch (error) {
+            console.error('❌ Error displaying Street View image:', error);
+            this.showImagePlaceholder();
+        }
+    }
+
+    async displayPlacesPhoto(photo) {
+        try {
+            this.showImageLoading();
+            
+            const photoUrl = photo.getUrl({
+                maxWidth: 600,
+                maxHeight: 400
+            });
+            
+            console.log('📸 Photo URL from Places API:', photoUrl);
+            await this.displayPropertyImage(photoUrl);
+            
+        } catch (error) {
+            console.error('❌ Error displaying Places photo:', error);
             this.showImagePlaceholder();
         }
     }
@@ -342,24 +435,6 @@ class HomeValueTracker {
                 resolve(null);
             }
         });
-    }
-
-    async displayPhotoFromPlacesAPI(photo) {
-        try {
-            this.showImageLoading();
-            
-            const photoUrl = photo.getUrl({
-                maxWidth: 600,
-                maxHeight: 400
-            });
-            
-            console.log('📸 Photo URL from Places API:', photoUrl);
-            await this.displayPropertyImage(photoUrl);
-            
-        } catch (error) {
-            console.error('❌ Error displaying photo from Places API:', error);
-            this.showImagePlaceholder();
-        }
     }
 
     async displayPropertyImage(imageUrl) {
@@ -437,35 +512,24 @@ class HomeValueTracker {
                             geometry: place.geometry
                         });
                         
-                        // Use Places API to get photos
-                        const placesService = new google.maps.places.PlacesService(document.createElement('div'));
-                        
-                        placesService.getDetails({
-                            placeId: place.place_id,
-                            fields: ['photos', 'formatted_address', 'name']
-                        }, (placeDetails, placeStatus) => {
-                            console.log('🔍 Places API details response:', { placeStatus, placeDetails });
-                            
-                            if (placeStatus === 'OK' && placeDetails && placeDetails.photos && placeDetails.photos.length > 0) {
-                                console.log('📸 Found photos for address:', placeDetails.photos.length);
-                                const photo = placeDetails.photos[0];
-                                
-                                // Display the found image
-                                this.showImageLoading();
-                                const photoUrl = photo.getUrl({
-                                    maxWidth: 600,
-                                    maxHeight: 400
-                                });
-                                
-                                console.log('📸 Photo URL from address search:', photoUrl);
-                                this.displayPropertyImage(photoUrl);
-                                resolve(photo);
-                            } else {
-                                console.log('⚠️ No photos found for address via Places API:', placeStatus);
-                                this.showImagePlaceholder();
-                                resolve(null);
-                            }
-                        });
+                        // First try Street View
+                        if (place.geometry && place.geometry.location) {
+                            this.getStreetViewImage(place.geometry.location).then(streetViewImage => {
+                                if (streetViewImage) {
+                                    console.log('📸 Street View image found for address');
+                                    this.displayStreetViewImage(streetViewImage);
+                                    resolve(streetViewImage);
+                                    return;
+                                } else {
+                                    console.log('⚠️ Street View not available, trying Places API...');
+                                    // Fallback to Places API
+                                    this.tryPlacesAPIForAddress(place.place_id, resolve);
+                                }
+                            });
+                        } else {
+                            // No geometry, try Places API directly
+                            this.tryPlacesAPIForAddress(place.place_id, resolve);
+                        }
                     } else {
                         console.log('❌ Geocoding failed for address:', status);
                         this.showImagePlaceholder();
@@ -478,6 +542,43 @@ class HomeValueTracker {
             console.error('❌ Error getting property image from address:', error);
             this.showImagePlaceholder();
             return null;
+        }
+    }
+
+    async tryPlacesAPIForAddress(placeId, resolve) {
+        try {
+            const placesService = new google.maps.places.PlacesService(document.createElement('div'));
+            
+            placesService.getDetails({
+                placeId: placeId,
+                fields: ['photos', 'formatted_address', 'name']
+            }, (placeDetails, placeStatus) => {
+                console.log('🔍 Places API details response:', { placeStatus, placeDetails });
+                
+                if (placeStatus === 'OK' && placeDetails && placeDetails.photos && placeDetails.photos.length > 0) {
+                    console.log('📸 Found photos for address via Places API:', placeDetails.photos.length);
+                    const photo = placeDetails.photos[0];
+                    
+                    // Display the found image
+                    this.showImageLoading();
+                    const photoUrl = photo.getUrl({
+                        maxWidth: 600,
+                        maxHeight: 400
+                    });
+                    
+                    console.log('📸 Photo URL from address search:', photoUrl);
+                    this.displayPropertyImage(photoUrl);
+                    resolve(photo);
+                } else {
+                    console.log('⚠️ No photos found for address via Places API:', placeStatus);
+                    this.showImagePlaceholder();
+                    resolve(null);
+                }
+            });
+        } catch (error) {
+            console.error('❌ Error calling Places API for address:', error);
+            this.showImagePlaceholder();
+            resolve(null);
         }
     }
 
@@ -923,7 +1024,7 @@ class HomeValueTracker {
     }
 
     async testGooglePlacesAPI() {
-        console.log('🧪 Testing Google Places API...');
+        console.log('🧪 Testing Google Places API and Street View...');
         
         if (!window.google || !window.google.maps) {
             console.log('⚠️ Google Maps not loaded yet');
@@ -932,7 +1033,7 @@ class HomeValueTracker {
         }
 
         try {
-            // Test with a well-known address that should have photos
+            // Test with a well-known address that should have photos and Street View
             const testAddress = '1600 Pennsylvania Avenue NW, Washington, DC 20500';
             console.log('🔍 Testing with address:', testAddress);
             
@@ -943,21 +1044,22 @@ class HomeValueTracker {
                     const place = results[0];
                     console.log('📍 Test geocoding successful:', place.place_id);
                     
-                    const placesService = new google.maps.places.PlacesService(document.createElement('div'));
-                    
-                    placesService.getDetails({
-                        placeId: place.place_id,
-                        fields: ['photos', 'formatted_address', 'name']
-                    }, (placeDetails, placeStatus) => {
-                        if (placeStatus === 'OK' && placeDetails) {
-                            console.log('✅ Google Places API test successful:', placeDetails);
-                            const photoCount = placeDetails.photos ? placeDetails.photos.length : 0;
-                            alert(`✅ Google Places API is working!\n\nFound ${photoCount} photos for the test address.`);
-                        } else {
-                            console.error('❌ Google Places API test failed:', placeStatus);
-                            alert(`❌ Google Places API test failed: ${placeStatus}`);
-                        }
-                    });
+                    // Test Street View first
+                    if (place.geometry && place.geometry.location) {
+                        console.log('🌍 Testing Street View...');
+                        this.getStreetViewImage(place.geometry.location).then(streetViewImage => {
+                            if (streetViewImage) {
+                                console.log('✅ Street View test successful');
+                                alert('✅ Google Street View API is working!\n\nStreet View images will be displayed for properties.');
+                            } else {
+                                console.log('⚠️ Street View not available, testing Places API...');
+                                this.testPlacesAPI(place.place_id);
+                            }
+                        });
+                    } else {
+                        console.log('⚠️ No geometry available, testing Places API...');
+                        this.testPlacesAPI(place.place_id);
+                    }
                 } else {
                     console.error('❌ Test geocoding failed:', status);
                     alert(`❌ Test geocoding failed: ${status}`);
@@ -965,8 +1067,31 @@ class HomeValueTracker {
             });
             
         } catch (error) {
-            console.error('❌ Google Places API test error:', error);
-            alert(`❌ Google Places API test error: ${error.message}`);
+            console.error('❌ Google API test error:', error);
+            alert(`❌ Google API test error: ${error.message}`);
+        }
+    }
+
+    async testPlacesAPI(placeId) {
+        try {
+            const placesService = new google.maps.places.PlacesService(document.createElement('div'));
+            
+            placesService.getDetails({
+                placeId: placeId,
+                fields: ['photos', 'formatted_address', 'name']
+            }, (placeDetails, placeStatus) => {
+                if (placeStatus === 'OK' && placeDetails) {
+                    console.log('✅ Google Places API test successful:', placeDetails);
+                    const photoCount = placeDetails.photos ? placeDetails.photos.length : 0;
+                    alert(`✅ Google Places API is working!\n\nFound ${photoCount} photos for the test address.\n\nStreet View will be used as primary image source, with Places API as fallback.`);
+                } else {
+                    console.error('❌ Google Places API test failed:', placeStatus);
+                    alert(`❌ Google Places API test failed: ${placeStatus}`);
+                }
+            });
+        } catch (error) {
+            console.error('❌ Places API test error:', error);
+            alert(`❌ Places API test error: ${error.message}`);
         }
     }
 }
