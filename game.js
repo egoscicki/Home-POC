@@ -22,6 +22,8 @@ class NPCGame {
         this.isChatOpen = false;
         this.currentNPC = null;
         this.apiKey = localStorage.getItem('openai_api_key') || '';
+        this.lastMoveTime = 0;
+        this.moveCooldown = 150; // Milliseconds between moves
         
         // Initialize
         this.setupEventListeners();
@@ -152,22 +154,39 @@ class NPCGame {
     }
     
     movePlayerTo(targetX, targetY) {
+        // Check cooldown for click/touch movement
+        const currentTime = Date.now();
+        if (currentTime - this.lastMoveTime < this.moveCooldown) {
+            return; // Don't move if cooldown hasn't passed
+        }
+        
         // Simple pathfinding - move towards target one step at a time
         const dx = targetX - this.player.x;
         const dy = targetY - this.player.y;
         
+        let moved = false;
+        
         if (Math.abs(dx) > Math.abs(dy)) {
             if (dx > 0 && !this.isPositionOccupied(this.player.x + 1, this.player.y)) {
                 this.player.x++;
+                moved = true;
             } else if (dx < 0 && !this.isPositionOccupied(this.player.x - 1, this.player.y)) {
                 this.player.x--;
+                moved = true;
             }
         } else {
             if (dy > 0 && !this.isPositionOccupied(this.player.x, this.player.y + 1)) {
                 this.player.y++;
+                moved = true;
             } else if (dy < 0 && !this.isPositionOccupied(this.player.x, this.player.y - 1)) {
                 this.player.y--;
+                moved = true;
             }
+        }
+        
+        // Update move time if we actually moved
+        if (moved) {
+            this.lastMoveTime = currentTime;
         }
     }
     
@@ -273,26 +292,42 @@ class NPCGame {
     }
     
     update() {
-        // Handle keyboard movement
+        // Handle keyboard movement with rate limiting
+        const currentTime = Date.now();
+        if (currentTime - this.lastMoveTime < this.moveCooldown) {
+            return; // Don't move if cooldown hasn't passed
+        }
+        
+        let moved = false;
+        
         if (this.keys['w'] || this.keys['arrowup']) {
             if (this.player.y > 0 && !this.isPositionOccupied(this.player.x, this.player.y - 1)) {
                 this.player.y--;
+                moved = true;
             }
         }
         if (this.keys['s'] || this.keys['arrowdown']) {
             if (this.player.y < this.rows - 1 && !this.isPositionOccupied(this.player.x, this.player.y + 1)) {
                 this.player.y++;
+                moved = true;
             }
         }
         if (this.keys['a'] || this.keys['arrowleft']) {
             if (this.player.x > 0 && !this.isPositionOccupied(this.player.x - 1, this.player.y)) {
                 this.player.x--;
+                moved = true;
             }
         }
         if (this.keys['d'] || this.keys['arrowright']) {
             if (this.player.x < this.cols - 1 && !this.isPositionOccupied(this.player.x + 1, this.player.y)) {
                 this.player.x++;
+                moved = true;
             }
+        }
+        
+        // Only update if player actually moved
+        if (moved) {
+            this.lastMoveTime = currentTime;
         }
     }
     
