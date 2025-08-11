@@ -693,7 +693,7 @@ class HomeValueTracker {
 
             console.log('📍 Geocoded address:', geocodedAddress);
 
-            // Get property valuation data
+            // Get property valuation data (currently sample)
             const valuationData = await this.getPropertyValuation(geocodedAddress);
             if (!valuationData) {
                 throw new Error('Could not get property valuation data');
@@ -701,7 +701,7 @@ class HomeValueTracker {
 
             console.log('💰 Property valuation data:', valuationData);
 
-            // Get additional property details
+            // Get additional property details (currently sample)
             const propertyDetails = await this.getPropertyDetails(geocodedAddress);
             console.log('🏠 Property details:', propertyDetails);
 
@@ -721,13 +721,26 @@ class HomeValueTracker {
             });
             
             // Fallback to sample data for demo purposes
-            console.log('🔄 Falling back to sample data...');
-            return this.getSamplePropertyData(address);
+            console.log('🔄 Falling back to sample data due to API failure...');
+            console.log('💡 This ensures the app remains functional even when external APIs are unavailable');
+            
+            const fallbackData = this.getSamplePropertyData(address);
+            fallbackData.dataSource = 'Sample Data (API Unavailable)';
+            fallbackData.apiStatus = 'Fallback Mode';
+            
+            return fallbackData;
         }
     }
 
     // Helper method to handle CORS issues with API calls
     async fetchWithCorsFallback(url, options = {}) {
+        const corsProxies = [
+            'https://cors-anywhere.herokuapp.com',
+            'https://api.allorigins.win/raw?url=',
+            'https://corsproxy.io/?',
+            'https://thingproxy.freeboard.io/fetch/'
+        ];
+
         try {
             // Try direct fetch first
             console.log('📡 Attempting direct API call...');
@@ -744,32 +757,50 @@ class HomeValueTracker {
             console.error('❌ Direct API call failed:', error);
             
             // Check if it's a CORS error
-            if (error.message.includes('Failed to fetch') || error.message.includes('CORS')) {
-                console.log('🔄 CORS error detected, trying CORS proxy...');
+            if (error.message.includes('Failed to fetch') || error.message.includes('CORS') || error.message.includes('NetworkError')) {
+                console.log('🔄 CORS error detected, trying CORS proxies...');
                 
-                try {
-                    const corsProxyUrl = `https://cors-anywhere.herokuapp.com/${url}`;
-                    console.log('📡 Trying CORS proxy...');
-                    
-                    const proxyResponse = await fetch(corsProxyUrl, {
-                        ...options,
-                        headers: {
-                            ...options.headers,
-                            'Origin': window.location.origin
+                // Try each CORS proxy in sequence
+                for (let i = 0; i < corsProxies.length; i++) {
+                    const proxy = corsProxies[i];
+                    try {
+                        console.log(`📡 Trying CORS proxy ${i + 1}/${corsProxies.length}: ${proxy}`);
+                        
+                        let proxyUrl;
+                        if (proxy.includes('allorigins.win')) {
+                            proxyUrl = `${proxy}${encodeURIComponent(url)}`;
+                        } else if (proxy.includes('corsproxy.io')) {
+                            proxyUrl = `${proxy}${url}`;
+                        } else if (proxy.includes('freeboard.io')) {
+                            proxyUrl = `${proxy}${url}`;
+                        } else {
+                            proxyUrl = `${proxy}/${url}`;
                         }
-                    });
-                    
-                    if (proxyResponse.ok) {
-                        console.log('✅ API call successful via CORS proxy');
-                        return proxyResponse;
-                    } else {
-                        throw new Error(`Proxy failed: ${proxyResponse.status}`);
+                        
+                        const proxyResponse = await fetch(proxyUrl, {
+                            ...options,
+                            headers: {
+                                ...options.headers,
+                                'Origin': window.location.origin
+                            }
+                        });
+                        
+                        if (proxyResponse.ok) {
+                            console.log(`✅ API call successful via CORS proxy ${i + 1}`);
+                            return proxyResponse;
+                        } else {
+                            console.warn(`⚠️ Proxy ${i + 1} failed: ${proxyResponse.status}`);
+                        }
+                        
+                    } catch (proxyError) {
+                        console.warn(`⚠️ Proxy ${i + 1} error:`, proxyError.message);
+                        continue; // Try next proxy
                     }
-                    
-                } catch (proxyError) {
-                    console.error('❌ CORS proxy also failed:', proxyError);
-                    throw new Error('API call failed - CORS restrictions prevent access from browser');
                 }
+                
+                // All proxies failed
+                console.error('❌ All CORS proxies failed');
+                throw new Error('API call failed - CORS restrictions prevent access from browser. All proxy attempts failed.');
             }
             
             throw error;
@@ -936,42 +967,96 @@ class HomeValueTracker {
     }
 
     displayPropertyData(data) {
-        // Update main property info
-        document.getElementById('propertyAddress').textContent = data.address;
-        document.getElementById('propertyType').textContent = data.propertyType;
-        
-        // Update current value
-        document.getElementById('currentValue').textContent = this.formatCurrency(data.currentValue);
-        
-        // Update value change
-        const valueChange = data.currentValue - data.previousValue;
-        const changePercentage = ((valueChange / data.previousValue) * 100).toFixed(1);
-        
-        const changeAmount = document.querySelector('.change-amount');
-        const changePercent = document.querySelector('.change-percentage');
-        
-        changeAmount.textContent = `${valueChange >= 0 ? '+' : ''}${this.formatCurrency(valueChange)}`;
-        changePercent.textContent = `${valueChange >= 0 ? '+' : ''}${changePercentage}%`;
-        
-        if (valueChange < 0) {
-            changeAmount.style.color = '#FF3B30';
-            changePercent.style.color = '#FF3B30';
-            changePercent.style.background = 'rgba(255, 59, 48, 0.1)';
-        }
+        try {
+            console.log('📊 Displaying property data:', data);
+            
+            // Show fallback mode notification if applicable
+            if (data.apiStatus === 'Fallback Mode') {
+                this.showFallbackNotification();
+            }
+            
+            // Update property title
+            const propertyTitle = document.getElementById('propertyTitle');
+            if (propertyTitle) {
+                propertyTitle.textContent = data.address || 'Property Details';
+            }
 
-        // Update property features
-        this.updateFeatures(data.features);
-        
-        // Update property details
-        document.getElementById('lastSoldDate').textContent = this.formatDate(data.lastSoldDate);
-        document.getElementById('squareFootage').textContent = this.formatNumber(data.squareFootage);
-        document.getElementById('bedrooms').textContent = data.bedrooms;
-        document.getElementById('bathrooms').textContent = data.bathrooms;
-        document.getElementById('lotSize').textContent = data.lotSize;
-        document.getElementById('yearBuilt').textContent = data.yearBuilt;
-        
-        // Update chart
-        this.updateChart(data.valueHistory);
+            // Update current value
+            const currentValue = document.getElementById('currentValue');
+            if (currentValue) {
+                currentValue.textContent = this.formatCurrency(data.currentValue);
+            }
+
+            // Update value change
+            const valueChange = document.getElementById('valueChange');
+            if (valueChange) {
+                const changeAmount = document.querySelector('.change-amount');
+                const changePercentage = document.querySelector('.change-percentage');
+                
+                if (changeAmount && changePercentage) {
+                    const change = data.valueChange || 0;
+                    const changePercent = data.valueChangePercent || 0;
+                    
+                    changeAmount.textContent = `${change >= 0 ? '+' : ''}${this.formatCurrency(change)}`;
+                    changePercentage.textContent = `${changePercent >= 0 ? '+' : ''}${changePercent}%`;
+                    
+                    // Update colors based on change
+                    const valueChangeElement = document.getElementById('valueChange');
+                    if (valueChangeElement) {
+                        valueChangeElement.style.color = change >= 0 ? '#34C759' : '#FF3B30';
+                    }
+                }
+            }
+
+            // Update features
+            if (data.features) {
+                this.updateFeatures(data.features);
+            }
+
+            // Update details grid
+            const detailsGrid = document.getElementById('detailsGrid');
+            if (detailsGrid) {
+                detailsGrid.innerHTML = '';
+                
+                const details = [
+                    { label: 'Last Purchase Date', value: data.lastPurchaseDate || 'N/A', icon: 'calendar' },
+                    { label: 'Square Footage', value: data.squareFootage ? `${this.formatNumber(data.squareFootage)} sq ft` : 'N/A', icon: 'ruler-combined' },
+                    { label: 'Bedrooms', value: data.bedrooms || 'N/A', icon: 'bed' },
+                    { label: 'Bathrooms', value: data.bathrooms || 'N/A', icon: 'bath' },
+                    { label: 'Year Built', value: data.yearBuilt || 'N/A', icon: 'hammer' },
+                    { label: 'Lot Size', value: data.lotSize ? `${this.formatNumber(data.lotSize)} acres` : 'N/A', icon: 'map' },
+                    { label: 'Property Type', value: data.propertyType || 'N/A', icon: 'home' },
+                    { label: 'Data Source', value: data.dataSource || 'Smarty API', icon: 'database' }
+                ];
+
+                details.forEach(detail => {
+                    const detailCard = document.createElement('div');
+                    detailCard.className = 'detail-card';
+                    detailCard.innerHTML = `
+                        <div class="detail-icon">
+                            <i class="fas fa-${detail.icon}"></i>
+                        </div>
+                        <div class="detail-content">
+                            <div class="detail-label">${detail.label}</div>
+                            <div class="detail-value">${detail.value}</div>
+                        </div>
+                    `;
+                    detailsGrid.appendChild(detailCard);
+                });
+            }
+
+            // Update chart
+            if (data.valueHistory && data.valueHistory.length > 0) {
+                this.updateChart(data.valueHistory);
+            }
+
+            // Show property section
+            this.showPropertySection();
+            
+        } catch (error) {
+            console.error('❌ Error displaying property data:', error);
+            this.showError('Error displaying property data');
+        }
     }
 
     updateFeatures(features) {
@@ -1166,7 +1251,7 @@ class HomeValueTracker {
             console.log('✅ Smarty API Test Successful:', data);
             
             // Check if we used a proxy
-            if (response.url.includes('cors-anywhere.herokuapp.com')) {
+            if (response.url.includes('cors-anywhere.herokuapp.com') || response.url.includes('allorigins.win') || response.url.includes('corsproxy.io') || response.url.includes('freeboard.io')) {
                 alert('✅ Smarty API is working via CORS proxy!\n\nNote: Using proxy due to CORS restrictions. For production, consider server-side integration.');
             } else {
                 alert('✅ Smarty API is working correctly!');
@@ -1175,11 +1260,38 @@ class HomeValueTracker {
         } catch (error) {
             console.error('❌ Smarty API Test Error:', error);
             
-            const errorMessage = error.message.includes('CORS restrictions') 
-                ? 'Network error - CORS restrictions prevent direct API access from the browser when deployed to AWS.\n\nSolutions:\n1. Use a CORS proxy service (currently implemented)\n2. Implement server-side API calls\n3. Use the API key in a backend service'
-                : `API Error: ${error.message}`;
+            let errorMessage = '';
+            if (error.message.includes('CORS restrictions') || error.message.includes('All proxy attempts failed')) {
+                errorMessage = `Network error - CORS restrictions prevent direct API access from the browser when deployed to AWS.
+
+🔧 Solutions:
+1. Use a CORS proxy service (currently implemented with multiple fallbacks)
+2. Implement server-side API calls
+3. Use the API key in a backend service
+4. Contact Smarty support about CORS policies
+
+📡 Current Status: All CORS proxy attempts failed. This is common when deployed to AWS due to strict CORS policies.`;
+            } else if (error.message.includes('Failed to fetch')) {
+                errorMessage = `Network error - Unable to reach the Smarty API.
+
+🔍 Possible causes:
+1. Internet connection issues
+2. Smarty API service down
+3. CORS restrictions from AWS deployment
+4. API key validation issues
+
+📡 Try refreshing the page or check your internet connection.`;
+            } else {
+                errorMessage = `API Error: ${error.message}
+
+🔍 This could be:
+1. Invalid API key
+2. API rate limiting
+3. Malformed request
+4. Service unavailable`;
+            }
                 
-            alert(`❌ Smarty API Test Error: ${errorMessage}\n\nCheck the console for details.`);
+            alert(`❌ Smarty API Test Error\n\n${errorMessage}\n\nCheck the console for technical details.`);
         }
     }
 
@@ -1252,6 +1364,34 @@ class HomeValueTracker {
         } catch (error) {
             console.error('❌ Places API test error:', error);
             alert(`❌ Places API test error: ${error.message}`);
+        }
+    }
+
+    showFallbackNotification() {
+        // Create a notification element
+        const notification = document.createElement('div');
+        notification.className = 'fallback-notification';
+        notification.innerHTML = `
+            <div class="notification-content">
+                <i class="fas fa-info-circle"></i>
+                <span>Running in Demo Mode - Using sample data due to API connectivity issues</span>
+                <button class="notification-close" onclick="this.parentElement.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        
+        // Add to the page
+        const container = document.querySelector('.app-container');
+        if (container) {
+            container.insertBefore(notification, container.firstChild);
+            
+            // Auto-remove after 10 seconds
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.remove();
+                }
+            }, 10000);
         }
     }
 }

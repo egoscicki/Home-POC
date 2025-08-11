@@ -834,3 +834,81 @@ body {
     }
 }
 
+/* Fallback Notification */
+.fallback-notification {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, #FF9500 0%, #FF6B35 100%);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 25px;
+    box-shadow: 0 8px 32px rgba(255, 149, 0, 0.3);
+    z-index: 1000;
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    animation: slideDown 0.5s ease-out;
+}
+
+.notification-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.notification-content i {
+    font-size: 1.1rem;
+}
+
+.notification-close {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease;
+}
+
+.notification-close:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateX(-50%) translateY(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Responsive adjustments for fallback notification */
+@media (max-width: 768px) {
+    .fallback-notification {
+        top: 10px;
+        left: 20px;
+        right: 20px;
+        transform: none;
+        border-radius: 20px;
+    }
+    
+    .notification-content {
+        font-size: 0.8rem;
+    }
+    
+    .notification-content span {
+        flex: 1;
+    }
+}
+
