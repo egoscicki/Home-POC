@@ -212,6 +212,14 @@ body {
     background: #218838;
 }
 
+.api-config button#testApiKey {
+    background: #007bff;
+}
+
+.api-config button#testApiKey:hover {
+    background: #0056b3;
+}
+
 @media (max-width: 768px) {
     .game-container {
         margin: 10px;

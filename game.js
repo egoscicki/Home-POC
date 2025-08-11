@@ -134,6 +134,11 @@ class NPCGame {
         document.getElementById('saveApiKey').addEventListener('click', () => {
             this.saveApiKey();
         });
+        
+        // API key test
+        document.getElementById('testApiKey').addEventListener('click', () => {
+            this.testApiKey();
+        });
     }
     
     loadApiKey() {
@@ -150,6 +155,47 @@ class NPCGame {
             alert('API key saved successfully!');
         } else {
             alert('Please enter a valid API key.');
+        }
+    }
+    
+    async testApiKey() {
+        const apiKeyInput = document.getElementById('apiKey');
+        const testKey = apiKeyInput.value.trim();
+        
+        if (!testKey) {
+            alert('Please enter an API key to test.');
+            return;
+        }
+        
+        try {
+            // Test with a simple API call
+            const response = await fetch('https://api.openai.com/v1/models', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${testKey}`
+                }
+            });
+            
+            if (response.ok) {
+                alert('✅ API key is valid! You can now chat with NPCs.');
+                this.apiKey = testKey;
+                localStorage.setItem('openai_api_key', this.apiKey);
+            } else {
+                const errorData = await response.json().catch(() => ({}));
+                let errorMessage = `API Key Test Failed (${response.status}): `;
+                
+                if (response.status === 401) {
+                    errorMessage += 'Invalid API key. Please check your OpenAI API key.';
+                } else if (response.status === 403) {
+                    errorMessage += 'Access denied. Please check your API key permissions.';
+                } else {
+                    errorMessage += errorData.error?.message || 'Unknown error occurred.';
+                }
+                
+                alert(errorMessage);
+            }
+        } catch (error) {
+            alert(`Network error: ${error.message}. Please check your internet connection.`);
         }
     }
     
@@ -236,7 +282,8 @@ class NPCGame {
                 const response = await this.getNPCResponse(message, this.currentNPC);
                 this.addMessage(response, 'npc');
             } catch (error) {
-                this.addMessage("Sorry, I'm having trouble connecting right now. Please check your API key.", 'npc');
+                this.addMessage(`Error: ${error.message}`, 'npc');
+                console.error('OpenAI API Error:', error);
             }
         } else if (!this.apiKey) {
             this.addMessage("I'd love to chat, but you need to set up your OpenAI API key first!", 'npc');
@@ -244,42 +291,68 @@ class NPCGame {
     }
     
     async getNPCResponse(message, npc) {
-        const prompt = `You are ${npc.name}, a character who is ${npc.personality}. 
-        A player is talking to you. Respond naturally but briefly (1-2 sentences max) 
-        as your character would. Keep responses short and engaging.
-        
-        Player: ${message}
-        ${npc.name}:`;
-        
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${this.apiKey}`
-            },
-            body: JSON.stringify({
-                model: 'gpt-3.5-turbo',
-                messages: [
-                    {
-                        role: 'system',
-                        content: `You are ${npc.name}, a character who is ${npc.personality}. Always respond briefly and naturally as your character.`
-                    },
-                    {
-                        role: 'user',
-                        content: message
-                    }
-                ],
-                max_tokens: 100,
-                temperature: 0.8
-            })
-        });
-        
-        if (!response.ok) {
-            throw new Error('API request failed');
+        // Validate API key format
+        if (!this.apiKey || this.apiKey.length < 20) {
+            throw new Error('Invalid API key format. Please check your OpenAI API key.');
         }
         
-        const data = await response.json();
-        return data.choices[0].message.content.trim();
+        try {
+            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.apiKey}`
+                },
+                body: JSON.stringify({
+                    model: 'gpt-3.5-turbo',
+                    messages: [
+                        {
+                            role: 'system',
+                            content: `You are ${npc.name}, a character who is ${npc.personality}. Always respond briefly and naturally as your character.`
+                        },
+                        {
+                            role: 'user',
+                            content: message
+                        }
+                    ],
+                    max_tokens: 100,
+                    temperature: 0.8
+                })
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                let errorMessage = `API Error (${response.status}): `;
+                
+                if (response.status === 401) {
+                    errorMessage += 'Invalid API key. Please check your OpenAI API key.';
+                } else if (response.status === 429) {
+                    errorMessage += 'Rate limit exceeded. Please wait a moment.';
+                } else if (response.status === 400) {
+                    errorMessage += errorData.error?.message || 'Bad request. Please check your API key format.';
+                } else if (response.status === 403) {
+                    errorMessage += 'Access denied. Please check your API key permissions.';
+                } else {
+                    errorMessage += errorData.error?.message || 'Unknown error occurred.';
+                }
+                
+                throw new Error(errorMessage);
+            }
+            
+            const data = await response.json();
+            
+            if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+                throw new Error('Unexpected response format from OpenAI API.');
+            }
+            
+            return data.choices[0].message.content.trim();
+            
+        } catch (error) {
+            if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                throw new Error('Network error. Please check your internet connection.');
+            }
+            throw error;
+        }
     }
     
     addMessage(text, sender) {
