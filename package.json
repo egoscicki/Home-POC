@@ -6,7 +6,12 @@
   "scripts": {
     "start": "python3 -m http.server 8000",
     "dev": "python3 -m http.server 8000",
-    "serve": "python3 -m http.server 8000"
+    "serve": "python3 -m http.server 8000",
+    "build": "node build.js",
+    "clean": "rm -rf dist",
+    "copy-files": "mkdir -p dist && cp index.html dist/ && cp style.css dist/ && cp app.js dist/ && cp LICENSE dist/ && cp README.md dist/",
+    "create-dist": "echo 'Build completed successfully!'",
+    "deploy": "npm run build && echo 'Ready for AWS deployment'"
   },
   "keywords": [
     "property",
@@ -15,7 +20,7 @@
     "home-tracker",
     "glass-ui",
     "apple-design",
-    "rentcast-api",
+    "smarty-api",
     "property-data",
     "real-estate-tools",
     "property-insights"
@@ -24,12 +29,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/home-poc.git"
+    "url": "https://github.com/egoscicki/Home-POC.git"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/home-poc/issues"
+    "url": "https://github.com/egoscicki/Home-POC/issues"
   },
-  "homepage": "https://github.com/yourusername/home-poc#readme",
+  "homepage": "https://github.com/egoscicki/Home-POC#readme",
   "devDependencies": {},
   "dependencies": {},
   "engines": {
