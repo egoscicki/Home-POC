@@ -27,22 +27,67 @@ class HomeValueTracker {
     }
 
     loadGoogleMapsAPI() {
-        const script = document.createElement('script');
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${this.googleApiKey}&libraries=places&callback=initGooglePlaces`;
-        script.async = true;
-        script.defer = true;
-        document.head.appendChild(script);
+        try {
+            console.log('🌐 Loading Google Maps API...');
+            
+            // Check if script is already loading
+            if (document.querySelector('script[src*="maps.googleapis.com"]')) {
+                console.log('⚠️ Google Maps API script already loading...');
+                return;
+            }
+
+            const script = document.createElement('script');
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${this.googleApiKey}&libraries=places&callback=initGooglePlaces&v=weekly`;
+            script.async = true;
+            script.defer = true;
+            script.onerror = (error) => {
+                console.error('❌ Failed to load Google Maps API script:', error);
+                this.handleGoogleMapsLoadError();
+            };
+            
+            document.head.appendChild(script);
+            
+            // Set timeout for script loading
+            const loadTimeout = setTimeout(() => {
+                console.warn('⚠️ Google Maps API script loading timeout');
+                this.handleGoogleMapsLoadError();
+            }, 10000); // 10 second timeout
+            
+            window.initGooglePlaces = () => {
+                clearTimeout(loadTimeout);
+                console.log('✅ Google Maps API loaded successfully');
+                this.setupGooglePlacesAutocomplete();
+                this.updateApiStatus();
+            };
+            
+        } catch (error) {
+            console.error('❌ Error loading Google Maps API:', error);
+            this.handleGoogleMapsLoadError();
+        }
+    }
+
+    handleGoogleMapsLoadError() {
+        console.log('🔄 Falling back to basic address input without Google Places');
+        this.updateApiStatus();
         
-        window.initGooglePlaces = () => {
-            this.setupGooglePlacesAutocomplete();
-            this.updateApiStatus();
-        };
+        // Show user-friendly message
+        const addressInput = document.getElementById('addressInput');
+        if (addressInput) {
+            addressInput.placeholder = 'Enter address manually (Google Places unavailable)';
+        }
     }
 
     setupGooglePlacesAutocomplete() {
         const addressInput = document.getElementById('addressInput');
         
         try {
+            console.log('🔧 Setting up Google Places Autocomplete...');
+            
+            // Verify Google Maps is available
+            if (!window.google || !window.google.maps || !window.google.maps.places) {
+                throw new Error('Google Maps Places API not available');
+            }
+
             const autocomplete = new google.maps.places.Autocomplete(addressInput, {
                 types: ['address'],
                 componentRestrictions: { country: 'us' },
@@ -50,34 +95,49 @@ class HomeValueTracker {
             });
 
             autocomplete.addListener('place_changed', () => {
-                const place = autocomplete.getPlace();
-                console.log('📍 Place selected:', place);
-                
-                if (place.geometry) {
-                    // Store the place data for image fetching
-                    this.selectedPlace = place;
+                try {
+                    const place = autocomplete.getPlace();
+                    console.log('📍 Place selected:', place);
                     
-                    // If the place has photos, log them
-                    if (place.photos && place.photos.length > 0) {
-                        console.log('📸 Place has photos:', place.photos.length);
-                        place.photos.forEach((photo, index) => {
-                            console.log(`📸 Photo ${index}:`, {
-                                width: photo.width,
-                                height: photo.height,
-                                htmlAttributions: photo.htmlAttributions
+                    if (place.geometry) {
+                        // Store the place data for image fetching
+                        this.selectedPlace = place;
+                        
+                        // If the place has photos, log them
+                        if (place.photos && place.photos.length > 0) {
+                            console.log('📸 Place has photos:', place.photos.length);
+                            place.photos.forEach((photo, index) => {
+                                console.log(`📸 Photo ${index}:`, {
+                                    width: photo.width,
+                                    height: photo.height,
+                                    htmlAttributions: photo.htmlAttributions
+                                });
                             });
-                        });
+                        } else {
+                            console.log('⚠️ Place has no photos, will try to fetch them later');
+                        }
+                        
+                        this.searchProperty();
                     } else {
-                        console.log('⚠️ Place has no photos, will try to fetch them later');
+                        console.log('⚠️ Selected place has no geometry, using manual address');
+                        this.searchProperty();
                     }
-                    
-                    this.searchProperty();
+                } catch (error) {
+                    console.error('❌ Error handling place selection:', error);
+                    this.searchProperty(); // Fallback to manual search
                 }
             });
 
-            console.log('Google Places Autocomplete initialized successfully');
+            // Add error handling for autocomplete
+            autocomplete.addListener('error', (error) => {
+                console.error('❌ Google Places Autocomplete error:', error);
+            });
+
+            console.log('✅ Google Places Autocomplete initialized successfully');
+            
         } catch (error) {
-            console.error('Error setting up Google Places Autocomplete:', error);
+            console.error('❌ Error setting up Google Places Autocomplete:', error);
+            this.handleGoogleMapsLoadError();
         }
     }
 
@@ -137,11 +197,22 @@ class HomeValueTracker {
         }
 
         try {
-            // Use Google Places API for real address suggestions
-            const suggestions = await this.getAddressSuggestions(query);
-            this.displaySuggestions(suggestions);
+            // First try Google Places API for real address suggestions
+            if (window.google && window.google.maps && window.google.maps.places) {
+                console.log('🔍 Using Google Places API for suggestions');
+                const suggestions = await this.getAddressSuggestions(query);
+                if (suggestions && suggestions.length > 0) {
+                    this.displaySuggestions(suggestions);
+                    return;
+                }
+            }
+            
+            // Fallback to basic suggestions if Google Places fails
+            console.log('⚠️ Google Places unavailable, using basic suggestions');
+            this.showBasicSuggestions(query);
+            
         } catch (error) {
-            console.error('Error getting address suggestions:', error);
+            console.error('❌ Error getting address suggestions:', error);
             // Fallback to basic suggestions
             this.showBasicSuggestions(query);
         }
@@ -149,40 +220,58 @@ class HomeValueTracker {
 
     async getAddressSuggestions(query) {
         return new Promise((resolve) => {
-            if (!window.google || !window.google.maps) {
+            if (!window.google || !window.google.maps || !window.google.maps.places) {
+                console.log('⚠️ Google Maps Places API not available');
                 resolve([]);
                 return;
             }
 
-            const service = new google.maps.places.AutocompleteService();
-            service.getPlacePredictions({
-                input: query,
-                types: ['address'],
-                componentRestrictions: { country: 'us' }
-            }, (predictions, status) => {
-                if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
-                    resolve(predictions.slice(0, 5));
-                } else {
-                    resolve([]);
-                }
-            });
+            try {
+                const service = new google.maps.places.AutocompleteService();
+                service.getPlacePredictions({
+                    input: query,
+                    types: ['address'],
+                    componentRestrictions: { country: 'us' }
+                }, (predictions, status) => {
+                    if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
+                        console.log('✅ Google Places suggestions received:', predictions.length);
+                        resolve(predictions.slice(0, 5));
+                    } else {
+                        console.log('⚠️ Google Places suggestions failed:', status);
+                        resolve([]);
+                    }
+                });
+            } catch (error) {
+                console.error('❌ Error calling Google Places API:', error);
+                resolve([]);
+            }
         });
     }
 
     showBasicSuggestions(query) {
+        // Enhanced sample addresses that are more likely to work
         const sampleAddresses = [
             '1600 Pennsylvania Avenue NW, Washington, DC 20500',
             '1 Times Square, New York, NY 10036',
             '350 Fifth Avenue, New York, NY 10118',
             '1111 Lincoln Road, Miami Beach, FL 33139',
-            '3601 S Las Vegas Blvd, Las Vegas, NV 89109'
+            '3601 S Las Vegas Blvd, Las Vegas, NV 89109',
+            '123 Main Street, New York, NY 10001',
+            '456 Oak Avenue, Los Angeles, CA 90210',
+            '789 Pine Road, Chicago, IL 60601'
         ];
 
         const filtered = sampleAddresses
             .filter(addr => addr.toLowerCase().includes(query.toLowerCase()))
             .slice(0, 5);
         
-        this.displaySuggestions(filtered);
+        if (filtered.length > 0) {
+            this.displaySuggestions(filtered);
+        } else {
+            // Show custom suggestion based on user input
+            const customSuggestion = `${query}, [City], [State] [ZIP]`;
+            this.displaySuggestions([customSuggestion]);
+        }
     }
 
     displaySuggestions(suggestions) {
@@ -637,17 +726,69 @@ class HomeValueTracker {
         }
     }
 
+    // Helper method to handle CORS issues with API calls
+    async fetchWithCorsFallback(url, options = {}) {
+        try {
+            // Try direct fetch first
+            console.log('📡 Attempting direct API call...');
+            const response = await fetch(url, options);
+            
+            if (response.ok) {
+                console.log('✅ Direct API call successful');
+                return response;
+            } else {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+        } catch (error) {
+            console.error('❌ Direct API call failed:', error);
+            
+            // Check if it's a CORS error
+            if (error.message.includes('Failed to fetch') || error.message.includes('CORS')) {
+                console.log('🔄 CORS error detected, trying CORS proxy...');
+                
+                try {
+                    const corsProxyUrl = `https://cors-anywhere.herokuapp.com/${url}`;
+                    console.log('📡 Trying CORS proxy...');
+                    
+                    const proxyResponse = await fetch(corsProxyUrl, {
+                        ...options,
+                        headers: {
+                            ...options.headers,
+                            'Origin': window.location.origin
+                        }
+                    });
+                    
+                    if (proxyResponse.ok) {
+                        console.log('✅ API call successful via CORS proxy');
+                        return proxyResponse;
+                    } else {
+                        throw new Error(`Proxy failed: ${proxyResponse.status}`);
+                    }
+                    
+                } catch (proxyError) {
+                    console.error('❌ CORS proxy also failed:', proxyError);
+                    throw new Error('API call failed - CORS restrictions prevent access from browser');
+                }
+            }
+            
+            throw error;
+        }
+    }
+
     async geocodeAddressWithSmarty(address) {
         try {
             const geocodeUrl = `${this.smartyBaseUrl}/street-address?street=${encodeURIComponent(address)}&auth-id=${this.smartyApiKey}`;
             console.log('📡 Geocoding URL:', geocodeUrl);
 
-            const response = await fetch(geocodeUrl);
-            console.log('📥 Geocoding Response Status:', response.status);
-
-            if (!response.ok) {
-                throw new Error(`Smarty Geocoding API Error: ${response.status} ${response.statusText}`);
-            }
+            // Use the CORS-aware fetch helper
+            const response = await this.fetchWithCorsFallback(geocodeUrl, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            });
 
             const data = await response.json();
             console.log('🌍 Geocoding results:', data);
@@ -1012,22 +1153,33 @@ class HomeValueTracker {
             const testUrl = `${this.smartyBaseUrl}/street-address?street=1600%20Pennsylvania%20Avenue%20NW%2C%20Washington%2C%20DC%2020500&auth-id=${this.smartyApiKey}`;
             console.log('📡 Test URL:', testUrl);
             
-            const response = await fetch(testUrl);
-            console.log('📥 Test Response Status:', response.status);
-            console.log('📥 Test Response Headers:', Object.fromEntries(response.headers.entries()));
+            // Use the CORS-aware fetch helper
+            const response = await this.fetchWithCorsFallback(testUrl, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            });
 
-            if (response.ok) {
-                const data = await response.json();
-                console.log('✅ Smarty API Test Successful:', data);
-                alert('✅ Smarty API is working correctly!');
+            const data = await response.json();
+            console.log('✅ Smarty API Test Successful:', data);
+            
+            // Check if we used a proxy
+            if (response.url.includes('cors-anywhere.herokuapp.com')) {
+                alert('✅ Smarty API is working via CORS proxy!\n\nNote: Using proxy due to CORS restrictions. For production, consider server-side integration.');
             } else {
-                const errorText = await response.text();
-                console.error('❌ Smarty API Test Failed:', response.status, errorText);
-                alert(`❌ Smarty API Test Failed: ${response.status} ${response.statusText}\n\nCheck the console for details.`);
+                alert('✅ Smarty API is working correctly!');
             }
+            
         } catch (error) {
             console.error('❌ Smarty API Test Error:', error);
-            alert(`❌ Smarty API Test Error: ${error.message}\n\nCheck the console for details.`);
+            
+            const errorMessage = error.message.includes('CORS restrictions') 
+                ? 'Network error - CORS restrictions prevent direct API access from the browser when deployed to AWS.\n\nSolutions:\n1. Use a CORS proxy service (currently implemented)\n2. Implement server-side API calls\n3. Use the API key in a backend service'
+                : `API Error: ${error.message}`;
+                
+            alert(`❌ Smarty API Test Error: ${errorMessage}\n\nCheck the console for details.`);
         }
     }
 
