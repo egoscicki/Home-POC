@@ -6,7 +6,7 @@ class HomeValueTracker {
         this.smartyApiKey = '6c0752f5-46ea-9e7c-725f-138e2f0eb6af';
         this.smartyAuthToken = '9nb8tKaJRauKbTbkTqGa';
         this.smartyBaseUrl = 'https://us-street.api.smartystreets.com';
-        this.googleApiKey = 'AIzaSyB41DRUbKWJHPxaFjMAwdrzWzbVKartNGg'; // Hardcoded Google API key
+        this.googleApiKey = 'AIzaSyBXq48NTHs4zGSM303QTv9K72s_Yve6qBo'; // Updated Google API key
         this.currentProperty = null;
         this.valueChart = null;
         this.autocompleteService = null;
