@@ -289,10 +289,46 @@ class NPCGame {
         const chatMessages = document.getElementById('chatMessages');
         
         chatMessages.innerHTML = '';
-        this.addMessage(`Hi! I'm ${npc.name}. I'm ${npc.personality}. How can I help you today?`, 'npc');
+        this.addMessage(this.generateGreeting(npc), 'npc');
         
         chatPanel.style.display = 'block';
         document.getElementById('chatInput').focus();
+    }
+    
+    generateGreeting(npc) {
+        const greetings = [
+            `Hey there! I'm ${npc.name}.`,
+            `What's up? ${npc.name} here.`,
+            `Yo, ${npc.name} speaking.`,
+            `Hello! ${npc.name} at your service.`,
+            `Sup? I'm ${npc.name}.`,
+            `Greetings! ${npc.name} here.`,
+            `Hey! ${npc.name} checking in.`,
+            `What's happening? I'm ${npc.name}.`
+        ];
+        
+        // Add personality-specific greetings
+        if (npc.name === 'Tyler') {
+            greetings.push(`Ugh, what now? I'm ${npc.name}.`);
+            greetings.push(`Oh great, another conversation. I'm ${npc.name}.`);
+        } else if (npc.name === 'Del') {
+            greetings.push(`Party time! I'm ${npc.name}.`);
+            greetings.push(`What's the vibe? I'm ${npc.name}.`);
+        } else if (npc.name === 'Greg') {
+            greetings.push(`Mamma Mia! I'm ${npc.name}.`);
+            greetings.push(`What do you want? I'm ${npc.name}.`);
+        } else if (npc.name === 'Ed') {
+            greetings.push(`Got a new idea! I'm ${npc.name}.`);
+            greetings.push(`Innovation time! I'm ${npc.name}.`);
+        } else if (npc.name === 'Kelly') {
+            greetings.push(`Party mode activated! I'm ${npc.name}.`);
+            greetings.push(`Let's get this party started! I'm ${npc.name}.`);
+        } else if (npc.name === 'Patrick') {
+            greetings.push(`Hey man, I'm ${npc.name}.`);
+            greetings.push(`What's good? I'm ${npc.name}.`);
+        }
+        
+        return greetings[Math.floor(Math.random() * greetings.length)];
     }
     
     closeChat() {
