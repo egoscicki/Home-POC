@@ -50,6 +50,10 @@
                                 id="googleApiKey" 
                                 placeholder="Enter your Google Maps API key for better address autocomplete"
                             >
+                            <small class="api-note">
+                                <i class="fas fa-info-circle"></i>
+                                Google API key enables property images and enhanced address autocomplete
+                            </small>
                         </div>
                     </div>
                     
@@ -100,13 +104,29 @@
                     
                     <!-- Main value display -->
                     <div class="value-display">
-                        <div class="current-value">
-                            <span class="value-label">Current Value</span>
-                            <span class="value-amount" id="currentValue">$0</span>
+                        <div class="value-content">
+                            <div class="current-value">
+                                <span class="value-label">Current Value</span>
+                                <span class="value-amount" id="currentValue">$0</span>
+                            </div>
+                            <div class="value-change" id="valueChange">
+                                <span class="change-amount">+$0</span>
+                                <span class="change-percentage">+0%</span>
+                            </div>
                         </div>
-                        <div class="value-change" id="valueChange">
-                            <span class="change-amount">+$0</span>
-                            <span class="change-percentage">+0%</span>
+                        
+                        <!-- Property Image -->
+                        <div class="property-image-container">
+                            <div class="property-image" id="propertyImage">
+                                <div class="image-placeholder">
+                                    <i class="fas fa-home placeholder-icon"></i>
+                                    <span>Property Image</span>
+                                </div>
+                            </div>
+                            <div class="image-loading" id="imageLoading" style="display: none;">
+                                <div class="loading-spinner"></div>
+                                <span>Loading image...</span>
+                            </div>
                         </div>
                     </div>
                     

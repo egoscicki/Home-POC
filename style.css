@@ -152,6 +152,21 @@ body {
     box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
 }
 
+.api-note {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #666;
+    font-size: 0.8rem;
+    margin-top: 0.5rem;
+    font-style: italic;
+}
+
+.api-note i {
+    color: #007AFF;
+    font-size: 0.9rem;
+}
+
 .test-api-btn {
     background: linear-gradient(135deg, #FF9500 0%, #FF6B35 100%);
     color: white;
@@ -387,6 +402,15 @@ body {
     background: rgba(255, 255, 255, 0.2);
     border-radius: 20px;
     border: 1px solid rgba(255, 255, 255, 0.3);
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
+
+.value-content {
+    flex: 1;
+    min-width: 300px;
 }
 
 .current-value {
@@ -430,6 +454,82 @@ body {
     background: rgba(52, 199, 89, 0.1);
     padding: 0.25rem 0.75rem;
     border-radius: 20px;
+}
+
+/* Property Image */
+.property-image-container {
+    flex: 0 0 300px;
+    height: 200px;
+    position: relative;
+    border-radius: 16px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.property-image {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.property-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 16px;
+    transition: transform 0.3s ease;
+}
+
+.property-image img:hover {
+    transform: scale(1.05);
+}
+
+.image-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    color: #999;
+    font-size: 0.9rem;
+}
+
+.placeholder-icon {
+    font-size: 2rem;
+    color: #ccc;
+}
+
+.image-loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.9);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    border-radius: 16px;
+}
+
+.image-loading .loading-spinner {
+    width: 30px;
+    height: 30px;
+    border: 3px solid rgba(0, 122, 255, 0.1);
+    border-top: 3px solid #007AFF;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.image-loading span {
+    color: #666;
+    font-size: 0.9rem;
+    font-weight: 500;
 }
 
 /* Property features */
@@ -638,6 +738,24 @@ body {
     .property-features {
         justify-content: center;
     }
+    
+    /* Mobile value display */
+    .value-display {
+        flex-direction: column;
+        gap: 1.5rem;
+        padding: 1.5rem;
+    }
+    
+    .value-content {
+        min-width: auto;
+    }
+    
+    .property-image-container {
+        flex: 0 0 auto;
+        width: 100%;
+        max-width: 300px;
+        margin: 0 auto;
+    }
 }
 
 @media (max-width: 480px) {
@@ -652,6 +770,14 @@ body {
     .property-features {
         flex-direction: column;
         align-items: center;
+    }
+    
+    .value-display {
+        padding: 1rem;
+    }
+    
+    .property-image-container {
+        height: 150px;
     }
 }
 

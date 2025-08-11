@@ -62,12 +62,14 @@ class HomeValueTracker {
             const autocomplete = new google.maps.places.Autocomplete(addressInput, {
                 types: ['address'],
                 componentRestrictions: { country: 'us' },
-                fields: ['formatted_address', 'geometry', 'place_id']
+                fields: ['formatted_address', 'geometry', 'place_id', 'photos']
             });
 
             autocomplete.addListener('place_changed', () => {
                 const place = autocomplete.getPlace();
                 if (place.geometry) {
+                    // Store the place data for image fetching
+                    this.selectedPlace = place;
                     this.searchProperty();
                 }
             });
@@ -242,6 +244,15 @@ class HomeValueTracker {
             if (propertyData) {
                 this.currentProperty = propertyData;
                 this.displayPropertyData(propertyData);
+                
+                // Fetch and display property image if Google Places is available
+                if (this.selectedPlace && this.googleApiKey) {
+                    await this.fetchAndDisplayPropertyImage(this.selectedPlace);
+                } else if (this.googleApiKey) {
+                    // Try to get image from address if no place was selected
+                    await this.getPropertyImageFromAddress(address);
+                }
+                
                 this.hideLoading();
                 this.showPropertySection();
             } else {
@@ -251,6 +262,155 @@ class HomeValueTracker {
             console.error('Error searching property:', error);
             this.showError(error.message || 'Failed to fetch property data');
             this.hideLoading();
+        }
+    }
+
+    async fetchAndDisplayPropertyImage(place) {
+        try {
+            console.log('🖼️ Fetching property image for place:', place);
+            
+            if (!place.photos || place.photos.length === 0) {
+                console.log('⚠️ No photos available for this property');
+                this.showImagePlaceholder();
+                return;
+            }
+
+            // Show loading state for image
+            this.showImageLoading();
+
+            // Get the first photo (usually the best one)
+            const photo = place.photos[0];
+            const maxWidth = 600; // Optimal size for display
+            
+            // Request the photo with specific dimensions
+            const photoUrl = photo.getUrl({
+                maxWidth: maxWidth,
+                maxHeight: 400
+            });
+
+            console.log('📸 Photo URL:', photoUrl);
+
+            // Create and display the image
+            await this.displayPropertyImage(photoUrl);
+
+        } catch (error) {
+            console.error('❌ Error fetching property image:', error);
+            this.showImagePlaceholder();
+        }
+    }
+
+    async displayPropertyImage(imageUrl) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            const propertyImageDiv = document.getElementById('propertyImage');
+            
+            img.onload = () => {
+                // Hide loading state
+                this.hideImageLoading();
+                
+                // Clear placeholder and add image
+                propertyImageDiv.innerHTML = '';
+                propertyImageDiv.appendChild(img);
+                
+                console.log('✅ Property image displayed successfully');
+                resolve();
+            };
+            
+            img.onerror = () => {
+                console.error('❌ Failed to load property image');
+                this.hideImageLoading();
+                this.showImagePlaceholder();
+                reject(new Error('Failed to load image'));
+            };
+            
+            // Set image source to start loading
+            img.src = imageUrl;
+        });
+    }
+
+    showImageLoading() {
+        const imageLoading = document.getElementById('imageLoading');
+        if (imageLoading) {
+            imageLoading.style.display = 'flex';
+        }
+    }
+
+    hideImageLoading() {
+        const imageLoading = document.getElementById('imageLoading');
+        if (imageLoading) {
+            imageLoading.style.display = 'none';
+        }
+    }
+
+    showImagePlaceholder() {
+        const propertyImageDiv = document.getElementById('propertyImage');
+        if (propertyImageDiv) {
+            propertyImageDiv.innerHTML = `
+                <div class="image-placeholder">
+                    <i class="fas fa-home placeholder-icon"></i>
+                    <span>No Image Available</span>
+                </div>
+            `;
+        }
+    }
+
+    // Enhanced method to get property image from address if Google Places isn't available
+    async getPropertyImageFromAddress(address) {
+        if (!this.googleApiKey) {
+            console.log('⚠️ No Google API key available for image search');
+            return null;
+        }
+
+        try {
+            console.log('🔍 Searching for property image using address:', address);
+            
+            // Use Google Geocoding API to get coordinates
+            const geocoder = new google.maps.Geocoder();
+            
+            return new Promise((resolve, reject) => {
+                geocoder.geocode({ address: address }, (results, status) => {
+                    if (status === 'OK' && results[0]) {
+                        const place = results[0];
+                        console.log('📍 Geocoded place:', place);
+                        
+                        // Use Places API to get photos
+                        const placesService = new google.maps.places.PlacesService(document.createElement('div'));
+                        
+                        placesService.getDetails({
+                            placeId: place.place_id,
+                            fields: ['photos']
+                        }, (placeDetails, placeStatus) => {
+                            if (placeStatus === 'OK' && placeDetails && placeDetails.photos) {
+                                console.log('📸 Found photos for address:', placeDetails.photos.length);
+                                const photo = placeDetails.photos[0];
+                                
+                                // Display the found image
+                                this.showImageLoading();
+                                const photoUrl = photo.getUrl({
+                                    maxWidth: 600,
+                                    maxHeight: 400
+                                });
+                                
+                                this.displayPropertyImage(photoUrl);
+                                resolve(photo);
+                            } else {
+                                console.log('⚠️ No photos found for address');
+                                this.showImagePlaceholder();
+                                resolve(null);
+                            }
+                        });
+                    } else {
+                        console.log('❌ Geocoding failed for address:', status);
+                        this.showImagePlaceholder();
+                        resolve(null);
+                    }
+                });
+            });
+            
+        } catch (error) {
+            console.error('❌ Error getting property image from address:', error);
+            this.showImagePlaceholder();
+            return null;
         }
     }
 
