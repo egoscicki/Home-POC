@@ -4,7 +4,7 @@
 class HomeValueTracker {
     constructor() {
         this.apiKey = '781535378a134991b5cbfc3a1df24acc';
-        this.googleApiKey = null;
+        this.googleApiKey = 'AIzaSyB41DRUbKWJHPxaFjMAwdrzWzbVKartNGg'; // Hardcoded Google API key
         this.baseUrl = 'https://api.rentcast.io/v1';
         this.currentProperty = null;
         this.valueChart = null;
@@ -18,31 +18,15 @@ class HomeValueTracker {
     }
 
     initializeGooglePlaces() {
-        // Check if user provided a Google API key
-        const googleApiKeyInput = document.getElementById('googleApiKey');
-        if (googleApiKeyInput) {
-            googleApiKeyInput.addEventListener('input', (e) => {
-                this.googleApiKey = e.target.value.trim();
-                if (this.googleApiKey) {
-                    this.loadGoogleMapsAPI();
-                }
-            });
-        }
-
-        // Initialize Google Places Autocomplete
+        // Initialize Google Places Autocomplete with hardcoded API key
         if (window.google && window.google.maps) {
             this.setupGooglePlacesAutocomplete();
-        } else if (this.googleApiKey) {
+        } else {
             this.loadGoogleMapsAPI();
         }
     }
 
     loadGoogleMapsAPI() {
-        if (!this.googleApiKey) {
-            console.log('No Google API key provided, using basic autocomplete');
-            return;
-        }
-
         const script = document.createElement('script');
         script.src = `https://maps.googleapis.com/maps/api/js?key=${this.googleApiKey}&libraries=places&callback=initGooglePlaces`;
         script.async = true;
@@ -86,14 +70,6 @@ class HomeValueTracker {
         const refreshBtn = document.getElementById('refreshBtn');
         const retryBtn = document.getElementById('retryBtn');
         const rentcastApiKeyInput = document.getElementById('rentcastApiKey');
-
-        // API key input handling
-        if (rentcastApiKeyInput) {
-            rentcastApiKeyInput.addEventListener('input', (e) => {
-                this.apiKey = e.target.value.trim();
-                this.updateApiStatus();
-            });
-        }
 
         // Address input with enhanced autocomplete
         addressInput.addEventListener('input', this.handleAddressInput.bind(this));
@@ -246,9 +222,9 @@ class HomeValueTracker {
                 this.displayPropertyData(propertyData);
                 
                 // Fetch and display property image if Google Places is available
-                if (this.selectedPlace && this.googleApiKey) {
+                if (this.selectedPlace) {
                     await this.fetchAndDisplayPropertyImage(this.selectedPlace);
-                } else if (this.googleApiKey) {
+                } else {
                     // Try to get image from address if no place was selected
                     await this.getPropertyImageFromAddress(address);
                 }
@@ -356,11 +332,6 @@ class HomeValueTracker {
 
     // Enhanced method to get property image from address if Google Places isn't available
     async getPropertyImageFromAddress(address) {
-        if (!this.googleApiKey) {
-            console.log('⚠️ No Google API key available for image search');
-            return null;
-        }
-
         try {
             console.log('🔍 Searching for property image using address:', address);
             
@@ -817,16 +788,9 @@ class HomeValueTracker {
         }
 
         if (googleStatus) {
-            if (window.google && window.google.maps) {
-                googleStatus.className = 'fas fa-circle status-icon connected';
-                googleStatus.title = 'Google Places Connected';
-            } else if (this.googleApiKey) {
-                googleStatus.className = 'fas fa-circle status-icon loading';
-                googleStatus.title = 'Google Places Loading...';
-            } else {
-                googleStatus.className = 'fas fa-circle status-icon disconnected';
-                googleStatus.title = 'Google Places Not Available';
-            }
+            // Google API is hardcoded, so always show as connected
+            googleStatus.className = 'fas fa-circle status-icon connected';
+            googleStatus.title = 'Google Places Connected';
         }
     }
 
