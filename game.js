@@ -25,10 +25,10 @@ class NPCGame {
         this.currentNPC = null;
         this.apiKey = localStorage.getItem('openai_api_key') || '';
         this.lastMoveTime = 0;
-        this.moveCooldown = 100; // Reduced for smoother movement
+        this.moveCooldown = 80; // Even smoother movement
         this.targetX = Math.floor(this.cols / 2);
         this.targetY = Math.floor(this.rows / 2);
-        this.movementSpeed = 0.15; // Smoothing factor for movement
+        this.movementSpeed = 0.08; // Much smoother interpolation
         
         // Initialize
         this.setupEventListeners();
@@ -37,10 +37,46 @@ class NPCGame {
     }
     
     generateNPCs() {
-        const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F'];
-        const names = ['Alice', 'Bob', 'Charlie', 'Diana', 'Eve', 'Frank', 'Grace', 'Henry', 'Iris', 'Jack'];
+        const npcData = [
+            {
+                name: 'Tyler',
+                color: '#FF6B6B',
+                personality: 'complains constantly about shows and food, gets drunk a lot, watches wrestling, lives in Livonia MI',
+                background: 'Tyler is a Livonia, MI resident who loves to complain about TV shows, movies, and food. He frequently gets drunk and is passionate about professional wrestling. He knows all the local bars and restaurants in the Livonia area and loves to critique them.'
+            },
+            {
+                name: 'Del',
+                color: '#4ECDC4',
+                personality: 'wealthy party boy from LA, now lives in Northville MI, loves swimming in his pool, produces shows for Bear Grylls',
+                background: 'Del is a wealthy transplant from Los Angeles who now lives in Northville, Michigan. He\'s a real party boy who loves swimming in his pool and producing shows for Bear Grylls. He\'s well-connected in the entertainment industry.'
+            },
+            {
+                name: 'Greg',
+                color: '#45B7D1',
+                personality: 'large Italian man who loves cooking, can\'t drive boats, gets angry easily, says "Mamma Mia" a lot',
+                background: 'Greg is a large, passionate Italian man who loves to cook and gets very angry at most things. He doesn\'t know how to drive boats and frequently exclaims "Mamma Mia!" when frustrated or excited about food.'
+            },
+            {
+                name: 'Ed',
+                color: '#96CEB4',
+                personality: 'constantly inventing new ideas, drinks at Emil\'s sports bar in Vernon Hills IL, works with Kelly at Rescue Stat',
+                background: 'Ed is an inventor who constantly comes up with new ideas and innovations. He frequents Emil\'s sports bar in the Vernon Hills, Illinois area and works alongside Kelly at Rescue Stat, where they collaborate on projects.'
+            },
+            {
+                name: 'Kelly',
+                color: '#FFEAA7',
+                personality: 'party girl VP of product at Rescue Stat, works with Ed, very outgoing and social',
+                background: 'Kelly is a party girl who serves as VP of Product at Rescue Stat, working closely with Ed. She\'s very outgoing, social, and loves to party while maintaining her professional role at the company.'
+            },
+            {
+                name: 'Patrick',
+                color: '#DDA0DD',
+                personality: 'loves bringing up butt stuff, has a butt fetish, easy going, stoner type',
+                background: 'Patrick is an easy-going, stoner-type character who has a particular fascination with butt-related topics and frequently brings them up in conversation. He\'s laid back and doesn\'t take things too seriously.'
+            }
+        ];
         
-        for (let i = 0; i < 8; i++) {
+        for (let i = 0; i < npcData.length; i++) {
             let x, y;
             do {
                 x = Math.floor(Math.random() * this.cols);
@@ -50,60 +86,15 @@ class NPCGame {
             this.npcs.push({
                 x: x,
                 y: y,
-                color: colors[i % colors.length],
-                name: names[i % names.length],
-                personality: this.generatePersonality()
+                color: npcData[i].color,
+                name: npcData[i].name,
+                personality: npcData[i].personality,
+                background: npcData[i].background
             });
         }
     }
     
-    generatePersonality() {
-        const personalities = [
-            {
-                trait: 'sarcastic and witty',
-                description: 'sarcastic, witty, and loves making clever remarks',
-                weight: 3 // Higher weight for sarcastic personalities
-            },
-            {
-                trait: 'humorous and playful',
-                description: 'humorous, playful, and always cracking jokes',
-                weight: 2
-            },
-            {
-                trait: 'angry and confrontational',
-                description: 'angry, confrontational, and easily irritated',
-                weight: 1
-            },
-            {
-                trait: 'lustful and flirtatious',
-                description: 'lustful, flirtatious, and charmingly seductive',
-                weight: 1
-            },
-            {
-                trait: 'mean and critical',
-                description: 'mean, critical, and enjoys putting others down',
-                weight: 1
-            },
-            {
-                trait: 'happy and optimistic',
-                description: 'happy, optimistic, and always sees the bright side',
-                weight: 1
-            }
-        ];
-        
-        // Weighted random selection (more sarcastic NPCs)
-        const totalWeight = personalities.reduce((sum, p) => sum + p.weight, 0);
-        let random = Math.random() * totalWeight;
-        
-        for (const personality of personalities) {
-            random -= personality.weight;
-            if (random <= 0) {
-                return personality.description;
-            }
-        }
-        
-        return personalities[0].description; // Fallback to first option
-    }
+
     
     isPositionOccupied(x, y) {
         if (x === this.player.x && y === this.player.y) return true;
@@ -351,16 +342,17 @@ class NPCGame {
                 messages: [
                     {
                         role: 'system',
-                        content: `You are ${npc.name}, a character who is ${npc.personality}. 
+                        content: `You are ${npc.name}. ${npc.background}
 
 IMPORTANT INSTRUCTIONS:
 - Always stay in character and respond as ${npc.name} would
 - Keep responses brief (1-2 sentences max)
 - Feel free to reference current events, news, pop culture, and recent developments
-- Be authentic to your personality - if you're sarcastic, be witty and clever; if you're angry, be confrontational; if you're lustful, be charmingly seductive
+- Be authentic to your personality and background
 - You can comment on current events, politics, technology, entertainment, sports, or any relevant topics
 - Make your responses engaging and true to your character's personality
-- Don't break character or be overly formal`
+- Don't break character or be overly formal
+- Reference your specific background, location, and interests naturally in conversation`
                     },
                     {
                         role: 'user',
@@ -417,6 +409,11 @@ IMPORTANT INSTRUCTIONS:
     }
     
     update() {
+        // Don't allow movement when chat is open
+        if (this.isChatOpen) {
+            return;
+        }
+        
         // Handle keyboard movement with rate limiting
         const currentTime = Date.now();
         if (currentTime - this.lastMoveTime < this.moveCooldown) {
