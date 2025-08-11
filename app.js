@@ -1623,6 +1623,30 @@ class HomeValueTracker {
         }
     }
 
+    toggleDeveloperPanel() {
+        const apiConfigSection = document.getElementById('apiConfigSection');
+        const apiStatus = document.querySelector('.api-status');
+        const developerToggle = document.getElementById('developerToggle');
+        
+        if (apiConfigSection.style.display === 'none') {
+            // Show developer panel
+            apiConfigSection.style.display = 'block';
+            apiStatus.style.display = 'flex';
+            developerToggle.innerHTML = '<i class="fas fa-eye-slash"></i><span>Hide Dev</span>';
+            developerToggle.style.background = 'rgba(0, 0, 0, 0.2)';
+            developerToggle.style.color = '#333';
+            console.log('🔧 Developer panel shown');
+        } else {
+            // Hide developer panel
+            apiConfigSection.style.display = 'none';
+            apiStatus.style.display = 'none';
+            developerToggle.innerHTML = '<i class="fas fa-cog"></i><span>Dev</span>';
+            developerToggle.style.background = 'rgba(0, 0, 0, 0.1)';
+            developerToggle.style.color = '#666';
+            console.log('🔧 Developer panel hidden');
+        }
+    }
+
     processStreetAddressData(data) {
         // Process street-address endpoint data
         if (data && data.length > 0) {

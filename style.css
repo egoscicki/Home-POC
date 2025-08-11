@@ -1010,3 +1010,49 @@ body {
     }
 }
 
+/* Developer Toggle */
+.developer-toggle {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: rgba(0, 0, 0, 0.1);
+    color: #666;
+    padding: 8px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.developer-toggle:hover {
+    background: rgba(0, 0, 0, 0.2);
+    color: #333;
+}
+
+.developer-toggle i {
+    font-size: 0.9rem;
+}
+
+/* Show developer toggle in development mode */
+@media (max-width: 1200px) {
+    .developer-toggle {
+        display: flex !important;
+    }
+}
+
+/* Always show developer toggle on small screens for debugging */
+@media (max-width: 768px) {
+    .developer-toggle {
+        display: flex !important;
+        top: 15px;
+        right: 15px;
+        padding: 6px 10px;
+        font-size: 0.75rem;
+    }
+}
+

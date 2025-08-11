@@ -28,14 +28,20 @@
                 <div class="glass-card">
                     <h2>Enter Property Address</h2>
                     
-                    <!-- API Configuration -->
-                    <div class="api-config-section">
+                    <!-- Developer Panel Toggle (Hidden by default) -->
+                    <div class="developer-toggle" id="developerToggle" onclick="homeTracker.toggleDeveloperPanel()" style="display: none;">
+                        <i class="fas fa-cog"></i>
+                        <span>Dev</span>
+                    </div>
+                    
+                    <!-- API Configuration (Hidden) -->
+                    <div class="api-config-section" id="apiConfigSection" style="display: none;">
                         <div class="config-item">
                             <label for="smartyApiKey">Smarty API Key:</label>
                             <input 
                                 type="password" 
                                 id="smartyApiKey" 
-                                value="243482185511107349"
+                                value="6c0752f5-46ea-9e7c-725f-138e2f0eb6af"
                                 placeholder="Enter your Smarty API key"
                             >
                             <div class="test-buttons">
@@ -68,7 +74,8 @@
                         </button>
                     </div>
                     
-                    <div class="api-status">
+                    <!-- API Status (Hidden) -->
+                    <div class="api-status" style="display: none;">
                         <div class="status-item">
                             <i class="fas fa-circle status-icon" id="smartyStatus"></i>
                             <span>Smarty API</span>
